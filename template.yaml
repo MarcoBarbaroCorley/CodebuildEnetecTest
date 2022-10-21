@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea l'infrastruttura
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+    Description: Base Environment
+  Project:
+    Type: String
+    Default: lico
+    Description: Project Name
+  CidrBlock:
+    Type: String
+    Default: 10.46.0.0/16
+    Description: VPC CIDR Block
+
+
+Resources:
+
+  NetworkStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        ProjectName: !Ref Project
+        CidrBlock: !Ref CidrBlock
+      Tags: []
+      TemplateURL: https://s3templatetestcorley.s3.eu-central-1.amazonaws.com/template/network.yaml
+      TimeoutInMinutes: 900

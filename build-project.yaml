@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Global resources
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: soloaffittipay
+    Description: Name of the project
+    AllowedPattern: "^[a-z0-9\\-]*$"
+  RepositoryURL:
+    Type: String
+    Description: Repository URL for component
+    Default: "https://github.com/MarcoBarbaroCorley/CodebuildEnetecTest.git"
+  Branches:
+    Type: String
+    Description: Trigger branches, separate with | if more than 1
+    Default: main
+  TypeContainer:
+    Type: String
+    Default: LINUX_CONTAINER
+  ImageCodeBuild:
+    Type: String
+    Default: aws/codebuild/standard:4.0
+
+Resources:
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      BadgeEnabled: true
+      Cache:
+        Type: NO_CACHE #evaluate (local or S3 available)
+      ConcurrentBuildLimit: 1
+      #Description: !Sub '${ProjectName}-${ComponentName}'
+      #EncryptionKey: #evaluate for artifacts
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL #https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-codebuild-project-environment.html#cfn-codebuild-project-environment-computetype
+        # EnvironmentVariables:
+        #   - Name:
+        #     Value:
+        Image: !Ref ImageCodeBuild #UBUNTU 20.04 #https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
+        #ImagePullCredentialsType: SERVICE_ROLE #CODEBUILD | SERVICE_ROLE
+        PrivilegedMode: true
+        # RegistryCredendial: #https://docs.aws.amazon.com/codebuild/latest/userguide/sample-private-registry.html
+        #   Credential:
+        #   CredentialProvider: SECRETS_MANAGER
+        Type: !Ref TypeContainer
+      #FileSystemLocations
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      Name: !Sub "${ProjectName}"
+      QueuedTimeoutInMinutes: 480
+      #ResourceAccessRole - The ARN of the IAM role that enables CodeBuild to access the CloudWatch Logs and Amazon S3 artifacts for the project's builds.
+      ServiceRole: !Ref CodeBuildRole #The ARN of the IAM role that enables AWS CodeBuild to interact with dependent AWS services on behalf of the AWS account.
+      Source:
+        Auth:
+          Type: OAUTH
+        Location: !Ref RepositoryURL
+        Type: GITHUB
+      SourceVersion: !Sub "refs/heads/${Branches}"
+      Triggers:
+        Webhook: true
+        FilterGroups:
+          - - Type: EVENT
+              Pattern: PUSH
+            - Type: HEAD_REF
+              Pattern: !Sub "^refs/heads/${Branches}$" # refs/heads/(staging|main) se ne servono di più
+            - Type: COMMIT_MESSAGE
+              Pattern: "\\[skip ci\\]"
+              ExcludeMatchedPattern: true
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-code-build-svc-role"
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-code-build-svc-role"
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Resource: "*"
+                Action:
+                  - "logs:*"
+                  - "codebuild:*"
+                  - "s3:*"
+                  - "iam:*"
+                  - "cloudformation:*"
+                  - "lambda:*"
+                  - "cloudwatch:*"
+                  - "apigateway:*"
+                  - "ecs:*"
+                  - "ec2:*"
+                  - "elasticloadbalancing:*"
+                  - "route53:*"
+                  - "ecr:*"
+                  - "rds:*"
+                  - "rds-db:*"
+                  - "secretsmanager:*"
+                  - "ssm:*"
+                  - "kms:*"
+                  - "cloudfront:*"
+                  - "wafv2:*"
+                  - "application-autoscaling:*"
+                  - "servicediscovery:*"

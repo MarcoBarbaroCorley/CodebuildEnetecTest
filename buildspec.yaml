@@ -1,0 +1,52 @@
+version: 0.2
+
+env:
+  shell: bash
+  git-credential-helper: "yes"
+  variables:
+    SAM_VERSION: "1.53.0"
+    SAM_CLI_TELEMETRY: "0"
+
+phases:
+  install:
+    on-failure: ABORT
+    commands:
+      # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install-linux.html#serverless-sam-cli-install-linux-sam-cli
+      # - wget --quiet https://github.com/aws/aws-sam-cli/releases/download/v${SAM_VERSION}/aws-sam-cli-linux-x86_64.zip
+      # - unzip -qq aws-sam-cli-linux-x86_64.zip -d sam-installation
+      # - ./sam-installation/install || ./sam-installation/install --update
+      # - sam --version
+      # - git clone https://github.com/aws/aws-elastic-beanstalk-cli-setup.git
+      # - python ./aws-elastic-beanstalk-cli-setup/scripts/ebcli_installer.py
+      # - echo 'export PATH="/root/.ebcli-virtual-env/executables:$PATH"' >> ~/.bash_profile && source ~/.bash_profile
+  pre_build:
+    on-failure: ABORT
+    commands:
+      - echo "[aws version]"
+      - aws --version
+      - export CURRENT_BRANCH=`printf $CODEBUILD_WEBHOOK_TRIGGER | cut -d '/' -f2 `
+      - export SAM_CLI_TELEMETRY=0
+      - echo "CURRENT BRANCH ${CURRENT_BRANCH}"
+      - aws s3 cp . s3://s3templatetestcorley/template/
+  build:
+    on-failure: ABORT
+    commands:
+      - echo "My first codebuild build command"
+      - echo "CURRENT BRANCH ${CURRENT_BRANCH}"
+      # - cd infrastructure   # ci sarà un eb deploy / update
+      # - sam build --config-env $CURRENT_BRANCH
+      # - ls -la .aws-sam*
+      # - sam deploy --config-env $CURRENT_BRANCH --no-confirm-changeset
+      - aws cloudformation update-stack --stack-name base --template-url https://s3templatetestcorley.s3.eu-central-1.amazonaws.com/template/template.yaml
+
+    # Build dei file del progetto : Il file zip va inserito dentro un bucket s3 
+      # - aws s3 cp deploy.zip s3://mybucket/deploy.zip
+      # - aws elasticbeanstalk create-application-version --application-name my-app --version-label 12345 --source-bundle S3Bucket="mybucket",S3Key="deploy.zip"
+      # - aws elasticbeanstalk update-environment --application-name my-app --environment-name MyApp-env --version-label 12345
+    # Creazione artifact 
+  post_build:
+    on-failure: ABORT
+    commands:
+      - echo "My first codebuild post_build command"
+    finally:
+      - echo "My first codebuild finally command"
