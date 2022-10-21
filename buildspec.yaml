@@ -47,6 +47,5 @@ phases:
   post_build:
     on-failure: ABORT
     commands:
-      - echo "My first codebuild post_build command"
-    finally:
-      - echo "My first codebuild finally command"
+      - echo "Success!"
+
