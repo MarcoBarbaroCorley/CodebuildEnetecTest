@@ -1,17 +1,13 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: Crea l'infrastruttura
 Parameters:
-  Env:
-    Type: String
-    Default: dev
-    Description: Base Environment
   Project:
     Type: String
     Default: lico
     Description: Project Name
   CidrBlock:
     Type: String
-    Default: 10.46.0.0/16
+    Default: 10.45.0.0/16
     Description: VPC CIDR Block
 
 
