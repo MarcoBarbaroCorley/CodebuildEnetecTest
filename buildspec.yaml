@@ -27,7 +27,7 @@ phases:
       - export CURRENT_BRANCH=`printf $CODEBUILD_WEBHOOK_TRIGGER | cut -d '/' -f2 `
       - export SAM_CLI_TELEMETRY=0
       - echo "CURRENT BRANCH ${CURRENT_BRANCH}"
-      - aws s3 cp . s3://s3templatetestcorley/template/
+      - aws s3 cp . s3://s3templatetestcorley/template/  --recursive
   build:
     on-failure: ABORT
     commands:
