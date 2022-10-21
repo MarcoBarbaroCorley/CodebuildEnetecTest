@@ -37,9 +37,10 @@ phases:
       # - sam build --config-env $CURRENT_BRANCH
       # - ls -la .aws-sam*
       # - sam deploy --config-env $CURRENT_BRANCH --no-confirm-changeset
-      - aws cloudformation update-stack --stack-name base --template-url https://s3templatetestcorley.s3.eu-central-1.amazonaws.com/template/template.yaml \
-      - --parameters ParameterKey=CidrBlock,UsePreviousValue=true \
-      - ParameterKey=Project,UsePreviousValue=true
+      - |
+        aws cloudformation update-stack --stack-name base --template-url https://s3templatetestcorley.s3.eu-central-1.amazonaws.com/template/template.yaml --parameters \
+        ParameterKey=CidrBlock,UsePreviousValue=true \
+        ParameterKey=Project,UsePreviousValue=true
       - aws cloudformation wait stack-update-complete --stack-name base
     # Build dei file del progetto : Il file zip va inserito dentro un bucket s3 
       # - aws s3 cp deploy.zip s3://mybucket/deploy.zip
