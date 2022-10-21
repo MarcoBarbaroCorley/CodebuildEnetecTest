@@ -3,7 +3,7 @@ Description: Crea l'infrastruttura
 Parameters:
   Project:
     Type: String
-    Default: lico
+    Default: lico2
     Description: Project Name
   CidrBlock:
     Type: String
