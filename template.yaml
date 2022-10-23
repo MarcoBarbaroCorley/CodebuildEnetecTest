@@ -55,6 +55,13 @@ Resources:
       GroupId: !GetAtt MySQLSG.GroupId
 
 
+  DBParamUpdate:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: DB Parameter
+      Family:  MySQL5.6
+      Parameters:
+        event_scheduler: 'ON'
 
   MySQLMaster:
     Type: AWS::RDS::DBInstance
@@ -73,6 +80,7 @@ Resources:
       # PerformanceInsightsKMSKeyId: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
       # PerformanceInsightsRetentionPeriod: 7
       MultiAZ: false
+      DBParameterGroupName: !Ref DBParamUpdate
       #KmsKeyId: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
       StorageEncrypted: false
       VPCSecurityGroups:
