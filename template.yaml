@@ -63,6 +63,7 @@ Resources:
       Parameters:
         event_scheduler: 'ON'
 
+
   MySQLMaster:
     Type: AWS::RDS::DBInstance
     Properties:
