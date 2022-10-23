@@ -68,7 +68,7 @@ Resources:
       Engine: mysql
       EngineVersion: 5.7
       MasterUsername: admin
-      MasterUserPassword: adminadmin!!
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:mysql-test:SecretString:DB_PASSWORD}}"
       # EnablePerformanceInsights: true
       # PerformanceInsightsKMSKeyId: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
       # PerformanceInsightsRetentionPeriod: 7
