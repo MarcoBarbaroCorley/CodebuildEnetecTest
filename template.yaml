@@ -74,7 +74,7 @@ Resources:
       # PerformanceInsightsRetentionPeriod: 7
       MultiAZ: false
       #KmsKeyId: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
-      StorageEncrypted: true
+      StorageEncrypted: false
       VPCSecurityGroups:
         - !Ref MySQLSG
       DBSubnetGroupName: !Ref PrivateSubnetsGroup
