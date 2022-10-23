@@ -9,6 +9,9 @@ Parameters:
     Type: String
     Default: 10.49.0.0/16
     Description: VPC CIDR Block
+  Environment:
+    Type: String
+    Default: prod
 
 
 Resources:
@@ -22,3 +25,58 @@ Resources:
       Tags: []
       TemplateURL: https://s3templatetestcorley.s3.eu-central-1.amazonaws.com/template/network.yaml
       TimeoutInMinutes: 900
+
+  PrivateSubnetsGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub $${Environment}-dbsubnetgroup
+      DBSubnetGroupDescription: SubnetGroup for private subnets
+      SubnetIds: 
+        - subnet-018c887fd57bd9903
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-dbsubnetgroup
+
+  MySQLSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: vpc-0d7404eea170ab0a5
+      GroupName: !Sub ${Environment}-MySQL-sg
+      GroupDescription: !Sub ${Environment}-MySQL-sg
+
+
+  InboundRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: "All traffic from same SG"
+      IpProtocol: -1
+      SourceSecurityGroupId: !GetAtt MySQLSG.GroupId
+      GroupId: !GetAtt MySQLSG.GroupId
+
+
+
+  MySQLMaster:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: test
+      DBInstanceIdentifier: !Sub "${Environment}-main"
+      AutoMinorVersionUpgrade: true
+      AllocatedStorage: 100
+      # Iops:
+      DBInstanceClass: db.t2.micro
+      Engine: mysql
+      EngineVersion: 5.7.21
+      MasterUsername: admin
+      MasterUserPassword: adminadmin!!
+      # EnablePerformanceInsights: true
+      # PerformanceInsightsKMSKeyId: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
+      # PerformanceInsightsRetentionPeriod: 7
+      MultiAZ: false
+      #KmsKeyId: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${KmsKeyId}"
+      StorageEncrypted: true
+      VPCSecurityGroups:
+        - !Ref MySQLSG
+      DBSubnetGroupName: !Ref PrivateSubnetsGroup
+      Tags:
+        - Key: Name
+          Value: !Sub "${Environment}-main"
