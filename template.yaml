@@ -59,7 +59,7 @@ Resources:
     Type: 'AWS::RDS::DBParameterGroup'
     Properties:
       Description: DB Parameter
-      Family:  MySQL5.6
+      Family:  MySQL5.7
       Parameters:
         event_scheduler: 'ON'
 
