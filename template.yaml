@@ -29,7 +29,7 @@ Resources:
   PrivateSubnetsGroup:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
-      DBSubnetGroupName: !Sub $${Environment}-dbsubnetgroup
+      DBSubnetGroupName: dbsubnetgroup-tests
       DBSubnetGroupDescription: SubnetGroup for private subnets
       SubnetIds: 
         - "subnet-018c887fd57bd9903"
