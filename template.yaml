@@ -32,7 +32,8 @@ Resources:
       DBSubnetGroupName: !Sub $${Environment}-dbsubnetgroup
       DBSubnetGroupDescription: SubnetGroup for private subnets
       SubnetIds: 
-        - subnet-018c887fd57bd9903
+        - "subnet-018c887fd57bd9903"
+        - "subnet-054ad9d1676feb5ca"
       Tags:
         - Key: Name
           Value: !Sub ${Environment}-dbsubnetgroup
