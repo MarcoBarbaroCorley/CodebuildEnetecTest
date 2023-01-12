@@ -45,6 +45,8 @@ Resources:
         EnvironmentVariables:
           - Name: BUCKET
             Value: !Ref InfrastructureBucket
+          - Name: ENVIRONMENT
+            Value: dev
         Image: !Ref ImageCodeBuild #UBUNTU 20.04 #https://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref-available.html
         #ImagePullCredentialsType: SERVICE_ROLE #CODEBUILD | SERVICE_ROLE
         PrivilegedMode: true
