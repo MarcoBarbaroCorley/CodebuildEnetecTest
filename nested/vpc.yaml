@@ -27,7 +27,7 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Sub vpc.${ProjectName}.${Environment} 
+          Value: !Sub vpc.${ProjectName}.${Environment}-test
   VpcEnvInternetGateway:
     Type: 'AWS::EC2::InternetGateway'
     Properties:
