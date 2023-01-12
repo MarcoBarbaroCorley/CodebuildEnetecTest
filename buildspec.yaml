@@ -17,6 +17,7 @@ phases:
       - aws s3 cp main.yaml s3://$BUCKET/templates/ 
       - echo $ENVIRONMENT
 
+
   build:
     on-failure: ABORT
     commands:
