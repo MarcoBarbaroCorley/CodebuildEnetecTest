@@ -21,15 +21,13 @@ phases:
     on-failure: ABORT
     commands:
       - |
-        if ["$ENVIRONMENT" = "dev" ];
-        then 
-        aws cloudformation create-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
-        aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
+        if ["$ENVIRONMENT" = "dev" ]; then 
+          aws cloudformation create-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
+          aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
         fi 
-        if ["$ENVIRONEMENT" = "prod"];
-        then 
-        aws cloudformation update-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
-        aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
+        if ["$ENVIRONEMENT" = "prod"]; then 
+          aws cloudformation update-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
+          aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
         fi 
   post_build:
     on-failure: ABORT
