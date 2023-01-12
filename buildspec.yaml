@@ -15,12 +15,13 @@ phases:
       - aws --version
       - aws s3 cp ./nested s3://$BUCKET/templates/  --recursive 
       - aws s3 cp main.yaml s3://$BUCKET/templates/ 
+      - echo $ENVIRONMENT
 
   build:
     on-failure: ABORT
     commands:
-        aws cloudformation create-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
-        aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
+      - aws cloudformation create-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
+      - aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
   post_build:
     on-failure: ABORT
     commands:
