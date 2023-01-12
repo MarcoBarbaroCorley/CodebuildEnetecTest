@@ -1,0 +1,287 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Meteo proxy
+Parameters:
+  ApiKey:
+    Type: String
+    Default: esNjJANuWxfGluTbw5eIMdVItKD9jd8Y
+    Description: Meteo api-key
+  Stage:
+    Type: String
+    Default: dev
+    Description: Stage dev/prod
+  SslArn:
+    Type: String
+    Default: ''
+    Description: US SSL Certificate Arn
+  HostedZone:
+    Type: String
+    Default: lico.corley.it.
+  DomainName:
+    Type: String
+    Default: meteo.lico.corley.it
+Resources:
+  MeteoRest:
+    Type: 'AWS::ApiGateway::RestApi'
+    Properties:
+      Description: AccuWeather Proxy API
+      Name: MeteoAPI
+  Forecasts:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !GetAtt 
+        - MeteoRest
+        - RootResourceId
+      PathPart: forecasts
+  Locations:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !GetAtt 
+        - MeteoRest
+        - RootResourceId
+      PathPart: locations
+  V1:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref Forecasts
+      PathPart: v1
+  LocationsV1:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref Locations
+      PathPart: v1
+  Cities:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref LocationsV1
+      PathPart: cities
+  GeoPosition:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref Cities
+      PathPart: geoposition
+  Search:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref GeoPosition
+      PathPart: search
+  Daily:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref V1
+      PathPart: daily
+  FiveDays:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref Daily
+      PathPart: 5days
+  LocationKey:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref MeteoRest
+      ParentId: !Ref FiveDays
+      PathPart: '{locationKey}'
+  LocationKeyOption:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: >-
+                'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+              method.response.header.Access-Control-Allow-Methods: '''GET,POST,OPTIONS'''
+              method.response.header.Access-Control-Allow-Origin: '''*'''
+            ResponseTemplates:
+              application/json: ''
+            StatusCode: '200'
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      OperationName: !Sub 'LocationOption${Stage}'
+      ResourceId: !Ref LocationKey
+      RestApiId: !Ref MeteoRest
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+  RequestValidator:
+    Type: 'AWS::ApiGateway::RequestValidator'
+    Properties:
+      Name: BaseValidator
+      RestApiId: !Ref MeteoRest
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+  LocationKeyGet:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref LocationKey
+      RestApiId: !Ref MeteoRest
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.path.locationKey: true
+        method.request.querystring.language: true
+      RequestValidatorId: !Ref RequestValidator
+      Integration:
+        Type: HTTP_PROXY
+        Uri: >-
+          http://dataservice.accuweather.com/forecasts/v1/daily/5day/{locationKey}
+        IntegrationHttpMethod: GET
+        RequestParameters:
+          integration.request.path.locationKey: method.request.path.locationKey
+          integration.request.querystring.language: method.request.querystring.language
+          integration.request.querystring.apikey: !Sub '''${ApiKey}'''
+          integration.request.querystring.metric: '''false'''
+          integration.request.querystring.details: '''false'''
+          integration.request.header.content-type: '''application/json'''
+        IntegrationResponses:
+          - StatusCode: 200
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+        - StatusCode: 500
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+        - StatusCode: 503
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+  SearchOption:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: >-
+                'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'
+              method.response.header.Access-Control-Allow-Methods: '''GET,POST,OPTIONS'''
+              method.response.header.Access-Control-Allow-Origin: '''*'''
+            ResponseTemplates:
+              application/json: ''
+            StatusCode: '200'
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      OperationName: !Sub 'SearchOption${Stage}'
+      ResourceId: !Ref Search
+      RestApiId: !Ref MeteoRest
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+  SearchGet:
+    Type: 'AWS::ApiGateway::Method'
+    Properties:
+      HttpMethod: GET
+      ResourceId: !Ref Search
+      RestApiId: !Ref MeteoRest
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.querystring.language: true
+        method.request.querystring.q: true
+      RequestValidatorId: !Ref RequestValidator
+      Integration:
+        Type: HTTP_PROXY
+        Uri: >-
+          http://dataservice.accuweather.com/locations/v1/cities/geoposition/search
+        IntegrationHttpMethod: GET
+        RequestParameters:
+          integration.request.querystring.q: method.request.querystring.q
+          integration.request.querystring.language: method.request.querystring.language
+          integration.request.querystring.apikey: !Sub '''${ApiKey}'''
+          integration.request.querystring.toplevel: '''false'''
+          integration.request.querystring.details: '''false'''
+          integration.request.header.content-type: '''application/json'''
+        IntegrationResponses:
+          - StatusCode: 200
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+        - StatusCode: 500
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+        - StatusCode: 503
+          ResponseModels:
+            application/json: Empty
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+  Deployment:
+    Type: 'AWS::ApiGateway::Deployment'
+    DependsOn: SearchGet
+    Properties:
+      RestApiId: !Ref MeteoRest
+      Description: Deployment
+      StageName: !Ref Stage
+  ApiDomainName:
+    Type: 'AWS::ApiGateway::DomainName'
+    Properties:
+      CertificateArn: !Ref SslArn
+      DomainName: !Ref DomainName
+  PathMapping:
+    Type: 'AWS::ApiGateway::BasePathMapping'
+    DependsOn: ApiDomainName
+    Properties:
+      DomainName: !Ref DomainName
+      RestApiId: !Ref MeteoRest
+      Stage: !Ref Stage
+  CustomDomainName:
+    Type: 'AWS::Route53::RecordSet'
+    DependsOn: ApiDomainName
+    Properties:
+      HostedZoneName: !Ref HostedZone
+      Name: !Ref DomainName
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+        - !Join 
+          - ''
+          - - !GetAtt 
+              - ApiDomainName
+              - DistributionDomainName
+            - .
+Outputs: {}

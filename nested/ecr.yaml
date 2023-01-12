@@ -1,0 +1,333 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Base docker registry
+Parameters:
+  StagingAccount:
+    Type: String
+    Default: '625727845833'
+Resources:
+  LogRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/log
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  GeofenceRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/geofence
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  TaskRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/task
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  EventRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/event
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  DaemonDeleteAccountsRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/daemon-delete-accounts
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  NotifyRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/notify
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  AdminTicketRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/admin/ticket
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  TicketRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/ticket
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  AdminContentRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/admin/content
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  ContentRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/content
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  CommunicationRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/communication
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  UploadRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/upload
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  ThingRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/thing
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  TelemetryRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/telemetry
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  Oauth2Repository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/oauth2
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  UserRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/user
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  AppRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/app
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  RotateTelemetryRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/telemetry-rotate
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+  TelemetryNotificationRepository:
+    Type: 'AWS::ECR::Repository'
+    Properties:
+      RepositoryName: enetec/telemetry-notification
+      RepositoryPolicyText:
+        Version: 2008-10-17
+        Statement:
+          - Sid: AllowPullCrossAccount
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${StagingAccount}:root'
+            Action:
+              - 'ecr:GetAuthorizationToken'
+              - 'ecr:GetDownloadUrlForLayer'
+              - 'ecr:BatchGetImage'
+              - 'ecr:BatchCheckLayerAvailability'
+Outputs:
+  TelemetryNotificationRepository:
+    Value: !Ref TelemetryNotificationRepository

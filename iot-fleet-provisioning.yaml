@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for AWS IoT Core Fleet provisioning
+
+# Parameters:
+#   ProjectName:
+#     Type: String
+#     Default: test
+#   Environment:
+#     Type: String 
+#     Default: dev
+#   PolicyName:
+#     Type: String
+#     Default: admin
+
+Resources:
+  ProvisioningRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-iot-fleet-provisioning-role
+      ManagedPolicyArns: 
+        - arn:aws:iam::aws:policy/service-role/AWSIoTThingsRegistration
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+              - "iot.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+  ProvisioningTemplate:
+    Type: AWS::IoT::ProvisioningTemplate
+    Properties: 
+      Description: IoT provisioning template
+      Enabled: true
+      # PreProvisioningHook: 
+      #   ProvisioningHook
+      ProvisioningRoleArn: !GetAtt ProvisioningRole.Arn
+      TemplateName: !Sub ${AWS::StackName}-template
+      TemplateBody:
+        !Sub |
+          {
+          "Parameters": {
+          "ThingName": {
+            "Type": "String"
+          },
+          "AWS::IoT::Certificate::Id": {
+            "Type": "String"
+          }
+          },
+          "Resources": {
+          "thing": {
+            "Type": "AWS::IoT::Thing",
+            "Properties": {
+            "ThingName": {
+              "Ref": "ThingName"
+            }
+            }
+          },
+          "certificate": {
+            "Properties": {
+            "CertificateId": {
+              "Ref": "AWS::IoT::Certificate::Id"
+            },
+            "Status": "Active"
+            },
+            "Type": "AWS::IoT::Certificate"
+          },
+          "policy": {
+            "Type": "AWS::IoT::Policy",
+            "Properties": {
+              "PolicyName": "${AWS::StackName}-thing-policy"
+            }
+          }
+          }
+          }
+  ProvisioningPolicy:
+    Type: 'AWS::IoT::Policy'
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-bootstrap-policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - 
+            Effect: Allow
+            Action:
+              - 'iot:Connect'
+            Resource:
+              - '*'
+          -
+            Effect: Allow
+            Action:
+              - 'iot:Publish'
+              - 'iot:Receive'
+            Resource:
+              - !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/certificates/create/json*'
+              - !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/certificates/create-from-csr/json*'
+              - !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/$aws/provisioning-templates/${AWS::StackName}-template/provision/*'
+          -
+            Effect: Allow
+            Action:
+              - 'iot:Subscribe'
+            Resource:
+              - !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/certificates/create/json/*'
+              - !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/certificates/create-from-csr/json/*'
+              - !Sub 'arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topicfilter/$aws/provisioning-templates/${AWS::StackName}-template/provision/*'
+  ThingPolicy:
+    Type: 'AWS::IoT::Policy'
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-thing-policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - 
+            Effect: Allow
+            Action:
+              - 'iot:Connect'
+            Resource:
+              - 'arn:aws:iot:eu-central-1:379485161710:client/${iot:Connection.Thing.ThingName}'
+            Condition:
+              'ForAllValues:StringEquals':
+                'iot:ConnectAttributes':
+                  - PersistentConnect
+          -
+            Effect: Allow
+            Action:
+              - 'iot:Publish'
+              - 'iot:Receive'
+            Resource:
+              - 'arn:aws:iot:eu-central-1:379485161710:topic/$aws/things/${iot:Connection.Thing.ThingName}/*'
+              - 'arn:aws:iot:eu-central-1:379485161710:topic/air-schedule/update'
+              - 'arn:aws:iot:eu-central-1:379485161710:topic/schedule/update'
+          -
+            Effect: Allow
+            Action:
+              - 'iot:Subscribe'
+            Resource:
+              - 'arn:aws:iot:eu-central-1:379485161710:topicfilter/$aws/things/${iot:Connection.Thing.ThingName}/*'

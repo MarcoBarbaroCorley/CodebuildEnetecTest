@@ -1,0 +1,354 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create telemetry API
+Parameters:
+  NetworkStackNameParameter:
+    Type: String
+    Default: network-stack
+    Description: Network base stack
+  EcsStackNameParameter:
+    Type: String
+    Default: ecs-cluster
+    Description: ECS cluster cloudformation stack name
+  ServiceName:
+    Type: String
+    Default: telemetry
+    Description: Your application name (used for lambda functions)
+  ServicePort:
+    Default: '8087'
+    Type: Number
+    Description: Your application port
+  ServicePriority:
+    Default: '7'
+    Type: Number
+    Description: Application priority
+  ServiceHostname:
+    Default: telemetry.lico.corley.it
+    Type: String
+    Description: Application domain name
+  Release:
+    Type: String
+    Default: '1234356'
+    Description: Docker image release (TAG)
+  ScaleUp:
+    Default: '60'
+    Type: String
+    Description: 'Scale-up on latency [ms]'
+  ScaleDown:
+    Default: '20'
+    Type: String
+    Description: 'Scale-down on latency [ms]'
+  DesiredCapacity:
+    Type: Number
+    Default: 1
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: 2
+    Description: Number of max task count
+  CPU:
+    Type: Number
+    Default: 64
+    Description: CPU Shares
+  Memory:
+    Type: Number
+    Default: 64
+    Description: Memory limit in MB
+  DbHost:
+    Type: String
+  DbUser:
+    Type: String
+  DbPass:
+    Type: String
+  DbName:
+    Type: String
+  PublicHostedZone:
+    Type: String
+    Description: 'Public hosted zone: lico.corley.it'
+  AclDomain:
+    Type: String
+    Description: 'https://acl.lico.corley.it'
+  UserDomain:
+    Type: String
+    Description: 'https://user.lico.corley.it'
+  IotEndpoint:
+    Type: String
+    Description: a3v5ohbmhg0it1.iot.eu-central-1.amazonaws.com
+Resources:
+  AppRecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      HostedZoneName: !Join 
+        - ''
+        - - !Ref PublicHostedZone
+          - .
+      Comment: DNS name for app
+      Name: !Ref ServiceHostname
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+        - !ImportValue 
+          'Fn::Sub': '${EcsStackNameParameter}-Endpoint'
+  TaskRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: access-catalog-s3-bucket
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'iot:*'
+                  - "ssm:GetParameters"
+                  - "secretsmanager:GetSecretValue"
+                Resource:
+                  - '*'
+  taskdefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      TaskRoleArn: !Ref TaskRole
+      ContainerDefinitions:
+        - Name: !Ref ServiceName
+          Cpu: !Ref CPU
+          Essential: 'true'
+          Image: !Join 
+            - ':'
+            - - 379485161710.dkr.ecr.eu-central-1.amazonaws.com/enetec/telemetry
+              - !Ref Release
+          Memory: !Ref Memory
+          Secrets:
+            - Name: DB_PASS
+                ValueFrom: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS:AccountID}:secret:MySQLDB-s3MFu4
+          Environment:
+            - Name: NODE_ENV
+              Value: production
+            - Name: NODE_PORT
+              Value: 3000
+            - Name: TZ
+              Value: UTC
+            - Name: DB_HOST
+              Value: !Ref DbHost
+            - Name: DB_USER
+              Value: !Ref DbUser
+            # - Name: DB_PASS
+            #   Value: !Ref DbPass
+            - Name: DB_NAME
+              Value: !Ref DbName
+            - Name: USER_DOMAIN
+              Value: !Ref UserDomain
+            - Name: ACL_DOMAIN
+              Value: !Ref AclDomain
+            - Name: IOT_REGION
+              Value: !Ref 'AWS::Region'
+            - Name: IOT_ENDPOINT
+              Value: !Ref IotEndpoint
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !ImportValue 
+                'Fn::Sub': '${EcsStackNameParameter}-LogGroupName'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: !Ref ServiceName
+          MountPoints: []
+          PortMappings:
+            - HostPort: !Ref ServicePort
+              ContainerPort: 3000
+      Volumes: []
+  service:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !ImportValue 
+        'Fn::Sub': '${EcsStackNameParameter}-ECSCluster'
+      DesiredCount: !Ref DesiredCapacity
+      LoadBalancers:
+        - ContainerName: !Ref ServiceName
+          ContainerPort: '3000'
+          TargetGroupArn: !Ref ECSTG
+      Role: !Ref ECSServiceRole
+      TaskDefinition: !Ref taskdefinition
+      Tags:
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+      PropagateTags: SERVICE
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+  ECSALBListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref ECSTG
+      Conditions:
+        - Field: host-header
+          Values:
+            - !Ref ServiceHostname
+      ListenerArn: !ImportValue 
+        'Fn::Sub': '${EcsStackNameParameter}-ALBListener'
+      Priority: !Ref ServicePriority
+  ECSTG:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /v1/ping
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Name: !Ref ServiceName
+      Port: !Ref ServicePort
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !ImportValue 
+        'Fn::Sub': '${NetworkStackNameParameter}-VpcID'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+  ECSServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'elasticloadbalancing:DeregisterInstancesFromLoadBalancer'
+                  - 'elasticloadbalancing:DeregisterTargets'
+                  - 'elasticloadbalancing:Describe*'
+                  - 'elasticloadbalancing:RegisterInstancesWithLoadBalancer'
+                  - 'elasticloadbalancing:RegisterTargets'
+                  - 'ec2:Describe*'
+                  - 'ec2:AuthorizeSecurityGroupIngress'
+                Resource: '*'
+  ServiceScalingTarget:
+    Type: 'AWS::ApplicationAutoScaling::ScalableTarget'
+    DependsOn: service
+    Properties:
+      MaxCapacity: !Ref MaxSize
+      MinCapacity: !Ref DesiredCapacity
+      ResourceId: !Join 
+        - ''
+        - - service/
+          - !ImportValue 
+            'Fn::Sub': '${EcsStackNameParameter}-ECSCluster'
+          - /
+          - !GetAtt 
+            - service
+            - Name
+      RoleARN: !GetAtt 
+        - AutoscalingRole
+        - Arn
+      ScalableDimension: 'ecs:service:DesiredCount'
+      ServiceNamespace: ecs
+  ServiceScalingPolicy:
+    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
+    Properties:
+      PolicyName: AStepUpPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: PercentChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 200
+  AlarmScaleUp:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: !Ref ScaleUp
+      AlarmDescription: Alarm if you service is under stress
+      Period: '60'
+      AlarmActions:
+        - !Ref ServiceScalingPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ServiceName
+          Value: !GetAtt 
+            - service
+            - Name
+        - Name: ClusterName
+          Value: !ImportValue 
+            'Fn::Sub': '${EcsStackNameParameter}-ECSCluster'
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: CPUUtilization
+  ServiceScalingDownPolicy:
+    Type: 'AWS::ApplicationAutoScaling::ScalingPolicy'
+    Properties:
+      PolicyName: AStepDownPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ServiceScalingTarget
+      StepScalingPolicyConfiguration:
+        AdjustmentType: PercentChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        MinAdjustmentMagnitude: 1
+        StepAdjustments:
+          - MetricIntervalUpperBound: 0
+            ScalingAdjustment: -50
+  AlarmScaleDown:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: !Ref ScaleDown
+      AlarmDescription: Alarm if our service is not under stress
+      Period: '60'
+      AlarmActions:
+        - !Ref ServiceScalingDownPolicy
+      Namespace: AWS/ECS
+      Dimensions:
+        - Name: ServiceName
+          Value: !GetAtt 
+            - service
+            - Name
+        - Name: ClusterName
+          Value: !ImportValue 
+            'Fn::Sub': '${EcsStackNameParameter}-ECSCluster'
+      ComparisonOperator: LessThanThreshold
+      MetricName: CPUUtilization
+  AutoscalingRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - application-autoscaling.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: service-autoscaling
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'application-autoscaling:*'
+                  - 'cloudwatch:DescribeAlarms'
+                  - 'cloudwatch:PutMetricAlarm'
+                  - 'ecs:DescribeServices'
+                  - 'ecs:UpdateService'
+                Resource: '*'

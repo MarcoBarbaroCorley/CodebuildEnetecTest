@@ -1,0 +1,157 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "IOT Topic Rules",
+  "Parameters": {
+    "ReadUnit" : {
+      "Type" : "Number"
+    },
+    "WriteUnit" : {
+      "Type" : "Number"
+    },
+    "TableName": {
+      "Type": "String"
+    },
+    "S3Bucket": {
+      "Type": "String"
+    },
+    "S3Key": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "DynamoDBTable": {
+			"Type" : "AWS::DynamoDB::Table",
+			"Properties" : {
+				"AttributeDefinitions" : [
+					{
+            "AttributeName" : "id",
+            "AttributeType" : "S"
+          }
+        ],
+				"KeySchema" : [
+          {
+            "AttributeName" : "id",
+            "KeyType" : "HASH"
+          }
+        ],
+				"ProvisionedThroughput" : {
+          "ReadCapacityUnits" : {"Ref": "ReadUnit"},
+          "WriteCapacityUnits" : {"Ref": "WriteUnit"}
+        },
+				"TableName" : {"Ref": "TableName"}
+			}
+    },
+    "LambdaFunction": {
+      "Type" : "AWS::Lambda::Function",
+      "Properties" : {
+        "Code": {
+          "S3Bucket" : {"Ref": "S3Bucket"},
+          "S3Key": {"Ref": "S3Key"}
+        },
+        "Description": "From IOT Shadow Thing trigger to DynamoDB",
+        "FunctionName": "iot-trigger",
+        "Handler": "index.handler",
+        "MemorySize": 128,
+        "Role": {"Fn::GetAtt" : ["LambdaRole", "Arn"] },
+        "Runtime": "nodejs6.10",
+        "Timeout": 30,
+        "Environment": {
+          "Variables": {
+            "ADMIN_TOKEN": "YWRtaW46YWRtaW4hIWFkbWluISE=",
+            "DYNAMODB_TABLE": {"Ref": "DynamoDBTable"}
+          }
+        }
+      }
+    },
+    "DynamoDBTopicRule": {
+      "Type": "AWS::IoT::TopicRule",
+      "Properties": {
+        "RuleName": {"Fn::Join": ["_", {"Fn::Split":["-", {"Fn::Join":["_", [{"Ref": "AWS::StackName"}, "DB"]]}]}]},
+        "TopicRulePayload": {
+          "Actions": [
+            {
+              "Lambda": {
+                "FunctionArn": {"Fn::GetAtt" : [ "LambdaFunction", "Arn" ]}
+              }
+            }
+          ],
+          "Description": "Write incoming Data to Lambda using Thing Shadow",
+          "RuleDisabled": false,
+          "Sql": {"Fn::Sub": "SELECT * FROM '$aws/things/+/shadow/update/accepted'"}
+        }
+      }
+    },
+    "LambdaPermission": {
+      "Type" : "AWS::Lambda::Permission",
+      "Properties" : {
+        "Action" : "lambda:InvokeFunction",
+        "FunctionName" : {"Fn::GetAtt" : [ "LambdaFunction", "Arn" ]},
+        "Principal": "iot.amazonaws.com",
+        "SourceAccount": {"Ref": "AWS::AccountId"},
+        "SourceArn" : {"Fn::GetAtt" : [ "DynamoDBTopicRule", "Arn" ]}
+      }
+    },
+    "LambdaRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": [ "lambda.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "lambda-policy-iot-thing-shadow",
+            "PolicyDocument": {
+              "Version" : "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": "dynamodb:*",
+                  "Resource": {"Fn::GetAtt" : [ "DynamoDBTable", "Arn" ]}
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "iot:Connect",
+                    "iot:Publish",
+                    "iot:Subscribe",
+                    "iot:Receive",
+                    "iot:GetThingShadow",
+                    "iot:UpdateThingShadow",
+                    "iot:DeleteThingShadow"
+                  ],
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": "logs:CreateLogGroup",
+                  "Resource": "*"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                      "logs:CreateLogStream",
+                      "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                      "*"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "RoleName": {"Fn::Sub": "${AWS::StackName}-lambda-iot-thing-role" }
+      }
+    }
+  },
+  "Outputs": {
+  }
+}
+

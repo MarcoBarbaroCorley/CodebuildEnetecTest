@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  WebACLName:
+    Type: String
+    Description: WebACL Name
+  Environment:
+    Type: String
+    Description: WebACL Name
+  Scope:
+    Type: String
+    Description: Scope of the Web ACL must be one from REGIONAL/CLOUDFRONT
+    Default: REGIONAL
+  ApiGatewaysARN:
+    Type: String
+    Description: All the API Gateway ARNs
+Resources:
+  # ####################### #
+  #       ASSOCIATIONS      #
+  # ####################### #
+  # APIGatewayAssociation1:
+  #   Type: AWS::WAFv2::WebACLAssociation
+  #   Properties:
+  #     ResourceArn: !Select [0, !Split [',', !Ref ApiGatewaysARN ]]
+  #     WebACLArn: !Sub ${WAF.Outputs.WAFArn}
+  # APIGatewayAssociation2:
+  #   Type: AWS::WAFv2::WebACLAssociation
+  #   Properties:
+  #     ResourceArn: !Select [1, !Split [',', !Ref ApiGatewaysARN ]]
+  #     WebACLArn: !Sub ${WAF.Outputs.WAFArn}
+  # ###################### #
+  #         LOGGING        #
+  # ###################### #
+  LogGroup: 
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      RetentionInDays: 7
+      LogGroupName: !Sub "aws-waf-logs-${WebACLName}-${Environment}"
+  LogConfiguration:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties: 
+      LogDestinationConfigs: 
+        - !Select [0, !Split [':*', !GetAtt LogGroup.Arn ]]  #https://github.com/aws-cloudformation/cloudformation-coverage-roadmap/issues/206
+      ResourceArn: !GetAtt WAF.Arn
+      LoggingFilter:
+        DefaultBehavior: DROP
+        Filters:
+        - Behavior: KEEP
+          Conditions:
+          - ActionCondition:
+              Action: BLOCK
+          - ActionCondition:
+              Action: COUNT
+          Requirement: MEETS_ANY
+
+  # ###################### #
+  #        ACL RULES       #
+  # ###################### #   
+  WAF:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      Name: !Sub "${WebACLName}-${Environment}"
+      Scope: !Ref Scope
+      Description: !Sub "${WebACLName}-${Environment}"
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        CloudWatchMetricsEnabled: true
+        MetricName: !Sub "${WebACLName}-${Environment}-metrics"
+      Rules:
+        - Name: CommonRules
+          Priority: 1
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: CommonRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules: []
+        - Name: AdminProtectionRules
+          Priority: 2
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AdminProtectionRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAdminProtectionRuleSet
+              ExcludedRules: []
+        - Name: KnownBadInputsRules
+          Priority: 3
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: KnownBadInputsRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+              ExcludedRules: []
+        - Name: SQLiRules
+          Priority: 4
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: SQLiRulesMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesSQLiRuleSet
+              ExcludedRules: []
+        - Name: AmazonIpReputationList
+          Priority: 5
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AmazonIpReputationListMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+              ExcludedRules: []
+        - Name: AnonymousIpList
+          Priority: 6
+          OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AnonymousIpListMetric
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAnonymousIpList
+              ExcludedRules: []
+Outputs:
+  WAFArn:
+    Description: WAF Arn
+    Value: !GetAtt  WAF.Arn

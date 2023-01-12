@@ -1,0 +1,39 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Base infrastrucutre support layer (S3 Buckets, etc)
+Parameters:
+  BucketName:
+    Type: String
+    Default: ''
+    Description: S3 Bucket Name to store other configuration
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+
+Resources:
+  InfrastructureBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      Tags: 
+        - Key: Name
+          Value: BucketName
+        - Key: app
+          Value: !Ref ProjectName
+        - Key: env
+          Value: !Ref Environment
+
+Outputs:
+  InfrastructureBucketOutput:
+    Description: S3 Bucket Infrastructure
+    Value:
+      Ref: InfrastructureBucket
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-InfrastructureBucket"

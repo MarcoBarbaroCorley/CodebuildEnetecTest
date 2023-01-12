@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Route53 public domain
+Parameters:
+  ValidationDomain:
+    Type: String
+  HostedZoneName:
+    Type: String
+  VpcId:
+    Type: String
+    Description: Your VPC ID
+Resources:
+  stub:
+    Type: 'AWS::EC2::NetworkAcl'
+    Properties:
+      VpcId: !Ref VpcId
+Outputs:
+  ValidationDomain:
+    Description: HostedZoneName
+    Value: !Ref ValidationDomain
+    Export:
+      Name: !Sub '${AWS::StackName}-ValidationDomain'
+  HostedZone:
+    Description: HostedZoneName
+    Value: !Ref HostedZoneName
+    Export:
+      Name: !Sub '${AWS::StackName}-HostedZoneName'

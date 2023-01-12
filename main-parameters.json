@@ -1,0 +1,158 @@
+[
+    {
+        "ParameterKey": "Env",
+        "ParameterValue": "prod"
+    },
+    {
+        "ParameterKey": "Project",
+        "ParameterValue": "sc365"
+    },
+    {
+        "ParameterKey": "CidrBlock",
+        "ParameterValue": "10.46.0.0/16"
+    },
+    {
+        "ParameterKey": "HostedZoneName",
+        "ParameterValue": "sc365.enetec.info"
+    },
+    {
+        "ParameterKey": "ValidationDomain",
+        "ParameterValue": "enetec.info"
+    },
+    {
+        "ParameterKey": "KeyName",
+        "ParameterValue": "ecs-pair"
+    },
+    {
+        "ParameterKey": "Subnet1AZ",
+        "ParameterValue": "eu-central-1a"
+    },
+    {
+        "ParameterKey": "Subnet2AZ",
+        "ParameterValue": "eu-central-1b"
+    },
+    {
+        "ParameterKey": "Subnet1CidrBlock",
+        "ParameterValue": "10.46.1.0/28"
+    },
+    {
+        "ParameterKey": "Subnet2CidrBlock",
+        "ParameterValue": "10.46.1.16/28"
+    },
+    {
+        "ParameterKey": "SubnetElb1CidrBlock",
+        "ParameterValue": "10.46.1.128/28"
+    },
+    {
+        "ParameterKey": "SubnetElb2CidrBlock",
+        "ParameterValue": "10.46.1.144/28"
+    },
+    {
+        "ParameterKey": "DesiredCapacity",
+        "ParameterValue": "7"
+    },
+    {
+        "ParameterKey": "MaxSize",
+        "ParameterValue": "7"
+    },
+    {
+        "ParameterKey": "InstanceType",
+        "ParameterValue": "t2.medium"
+    },
+    {
+        "ParameterKey": "CertificateArn",
+        "ParameterValue": "arn:aws:acm:eu-central-1:379485161710:certificate/f32df80d-c9d4-47ee-9614-1992dd911a6e"
+    },
+    {
+        "ParameterKey": "DBSubnet1CidrBlock",
+        "ParameterValue": "10.46.2.0/28"
+    },
+    {
+        "ParameterKey": "DBSubnet2CidrBlock",
+        "ParameterValue": "10.46.2.16/28"
+    },
+    {
+        "ParameterKey": "RdsMySQLInstanceType",
+        "ParameterValue": "db.t2.micro"
+    },
+    {
+        "ParameterKey": "RdsMySQLName",
+        "ParameterValue": "lico"
+    },
+    {
+        "ParameterKey": "RdsMySQLMultiAZ",
+        "ParameterValue": "false"
+    },
+    {
+        "ParameterKey": "RdsMySQLMasterUsername",
+        "ParameterValue": "lico"
+    },
+    {
+        "ParameterKey": "RdsMySQLUserPassword",
+        "ParameterValue": "MySQLDB"
+    },
+    {
+        "ParameterKey": "RdsMySQLPublicAccess",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "RdsStorage",
+        "ParameterValue": "100"
+    },
+    {
+        "ParameterKey": "RdsEngineVersion",
+        "ParameterValue": "5.7.21"
+    },
+    {
+        "ParameterKey": "DBParamFamily",
+        "ParameterValue": "MySQL5.7"
+    },
+    {
+        "ParameterKey": "CacheNodes",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "CacheInstanceType",
+        "ParameterValue": "cache.t2.micro"
+    },
+    {
+        "ParameterKey": "CacheSubnet1CidrBlock",
+        "ParameterValue": "10.46.3.0/28"
+    },
+    {
+        "ParameterKey": "CacheSubnet2CidrBlock",
+        "ParameterValue": "10.46.3.16/28"
+    },
+    {
+        "ParameterKey": "IotTableName",
+        "ParameterValue": "termo_data"
+    },
+    {
+        "ParameterKey": "ReadUnit",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "WriteUnit",
+        "ParameterValue": "1"
+    },
+    {
+        "ParameterKey": "IotLambdaBucket",
+        "ParameterValue": "sc365-infrastructure"
+    },
+    {
+        "ParameterKey": "IotLambdaKey",
+        "ParameterValue": "iot-to-dynamodb-11e2555.zip"
+    },
+    {
+        "ParameterKey": "StagingAccount",
+        "ParameterValue": "625727845833"
+    },
+    {
+        "ParameterKey": "WAFApiGatewaysARN",
+        "ParameterValue": ""
+    },
+    {
+        "ParameterKey": "WAFLoadBalancersARN",
+        "ParameterValue": ""
+    }
+]

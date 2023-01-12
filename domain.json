@@ -1,0 +1,45 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Route53 public domain",
+  "Parameters": {
+    "ValidationDomain": {
+      "Type": "String",
+      "Default": "corley.it"
+    },
+    "HostedZoneName": {
+      "Type": "String",
+      "Default": "lico.corley.it"
+    },
+    "VpcId": {
+      "Type": "String",
+      "Description": "Your VPC ID"
+    }
+  },
+  "Resources": {
+    "PublicHostedZone": {
+      "Type" : "AWS::Route53::HostedZone",
+      "Properties" : {
+        "HostedZoneConfig": {
+          "Comment": "Public Hosted Zone for App"
+        },
+        "Name" : {"Ref": "HostedZoneName"}
+      }
+    }
+  },
+  "Outputs": {
+    "ValidationDomain" : {
+      "Description" : "HostedZoneName",
+      "Value" : {"Ref": "ValidationDomain"},
+      "Export" : {
+        "Name" : {"Fn::Sub": "${AWS::StackName}-ValidationDomain"}
+      }
+    },
+    "HostedZone" : {
+      "Description" : "HostedZoneName",
+      "Value" : {"Ref": "HostedZoneName"},
+      "Export" : {
+        "Name" : {"Fn::Sub": "${AWS::StackName}-HostedZoneName"}
+      }
+    }
+  }
+}

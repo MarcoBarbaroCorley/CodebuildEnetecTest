@@ -1,0 +1,214 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPN-Test
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name for this infrastructure
+  ProjectName:
+    Type: String
+    Default: myprj
+    Description: Project name
+  Subnet1AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 1 Availability Zone
+  Subnet2AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 2 Availability Zone
+  CidrBlock:
+    Type: String
+    Default: 10.46.0.0/16
+    Description: Your IP class
+  Subnet1CidrBlock:
+    Type: String
+    Default: 10.46.1.0/28
+    Description: Cidr subnet 1
+  Subnet2CidrBlock:
+    Type: String
+    Default: 10.46.1.16/28
+    Description: Cidr subnet 2
+  VpnImageId:
+    Type: String
+    Default: ami-a8d2d7ce
+    Description: Vpn image id
+  VpnKeyPair:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    MinLength: 1
+    Description: Ssh key to log into the Vpn instances
+  VpnInstanceType:
+    Type: String
+    Default: t2.nano
+  VpnEBSSize:
+    Type: String
+    Default: '20'
+    Description: Vps volume size
+Resources:
+  VpcEnv:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref CidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - .
+            - - vpc
+              - !Ref ProjectName
+              - !Ref Environment
+  VpcEnvInternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - .
+            - - igw
+              - !Ref ProjectName
+              - !Ref Environment
+  CIIgwAttach:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref VpcEnvInternetGateway
+      VpcId: !Ref VpcEnv
+  VpnSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet1AZ
+      CidrBlock: !Ref Subnet1CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcEnv
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - vpn-1a
+              - !Ref ProjectName
+              - !Ref Environment
+  VpnSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet2AZ
+      CidrBlock: !Ref Subnet2CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcEnv
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - vpn-1b
+              - !Ref ProjectName
+              - !Ref Environment
+  RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VpcEnv
+  LocalRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref VpcEnvInternetGateway
+      RouteTableId: !Ref RouteTable
+  Vpn1LocalRoute:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref VpnSubnet1a
+  Vpn2RouteSecond:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref VpnSubnet1b
+  VpnSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Vpn security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: udp
+          ToPort: 1194
+          FromPort: 1194
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - vpn-sg
+              - !Ref ProjectName
+              - !Ref Environment
+      VpcId: !Ref VpcEnv
+  VpnAwareSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Frontend security group
+      SecurityGroupIngress:
+        - IpProtocol: '-1'
+          ToPort: '-1'
+          FromPort: '-1'
+          SourceSecurityGroupId: !Ref VpnSG
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - vpn-aware-sg
+              - !Ref ProjectName
+              - !Ref Environment
+      VpcId: !Ref VpcEnv
+  VpnInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      SubnetId: !Ref VpnSubnet1a
+      ImageId: !Ref VpnImageId
+      InstanceType: !Ref VpnInstanceType
+      SecurityGroupIds:
+        - !Ref VpnSG
+      IamInstanceProfile: !Ref VpnInstanceProfile
+      KeyName: !Ref VpnKeyPair
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - vpn
+              - !Ref ProjectName
+              - !Ref Environment
+  VpnInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref VpnRootRole
+      InstanceProfileName: !Join 
+        - '-'
+        - - vpn-role
+          - !Ref ProjectName
+          - !Ref Environment
+  VpnRootRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: !Sub vpn-policy-${ProjectName}-${Environment}
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+  VpnIP:
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      InstanceId: !Ref VpnInstance
+      Domain: vpc

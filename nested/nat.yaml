@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea Nat Gateway 
+Parameters:
+  ProjectName:
+    Type: String
+  Environment:
+    Type: String
+  PublicSubnet:
+    Type: String
+  PrivateRouteTableDatabase:
+    Type: String
+  PrivateRouteTableCluster:
+    Type: String
+Resources:
+  
+
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-nat-gw"
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-nat-gw-eip"
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+
+
+  NatGatewayRouteDatabase:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+      RouteTableId: !Ref PrivateRouteTableDatabase
+
+  NatGatewayRouteCluster:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+      RouteTableId: !Ref PrivateRouteTableCluster
+
+Outputs:
+  NatGateway:
+    Value: !Ref NatGateway
+    Export:
+      Name: !Sub "${AWS::StackName}-nat-gw"
+  PrivateRouteTable: 
+    Value: !Ref PrivateRouteTableDatabase
+  PrivateRouteTableCluster:
+    Value: !Ref PrivateRouteTableCluster

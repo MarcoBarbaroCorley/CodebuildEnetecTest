@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea la struttura di cache basata su Memcached
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name for this infrastructure
+  ProjectName:
+    Type: String
+    Default: universe
+    Description: Project name
+  PrivateHostedZone:
+    Type: String
+    Description: Private DNS hosted zone
+    Default: universe.prod
+  Subnet1AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 1 Availability Zone
+  Subnet2AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 2 Availability Zone
+  Subnet1CidrBlock:
+    Type: String
+    Default: 10.46.3.0/28
+    Description: Cidr subnet 1
+  Subnet2CidrBlock:
+    Type: String
+    Default: 10.46.3.16/28
+    Description: Cidr subnet 2
+  MemcacheInstanceName:
+    Type: String
+    Default: cache.t2.micro
+    Description: Memcached instance's tier
+  MemcacheNodes:
+    Type: Number
+    Default: 1
+    Description: number of nodes
+  VpcId:
+    Type: String
+  AppSG:
+    Type: String
+  SnapshotName:
+    Type: String
+
+Conditions:
+  IsDev : !Equals [!Ref Environment, "prod"]
+Resources:
+  # ################### #
+  #      NETWORKING     #
+  # ################### #
+  MemcacheSubnetGroup:
+    Type: 'AWS::ElastiCache::SubnetGroup'
+    Properties:
+      Description: Cache Subnet Group
+      SubnetIds:
+        - !Ref MemcacheSubnet1a
+        - !Ref MemcacheSubnet1b
+  MemcacheSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet1AZ
+      CidrBlock: !Ref Subnet1CidrBlock
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub memcache-1a-${ProjectName}-${Environment}
+  MemcacheSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet2AZ
+      CidrBlock: !Ref Subnet2CidrBlock
+      MapPublicIpOnLaunch: false
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub memcache-1b-${ProjectName}-${Environment}
+  # ###################### #
+  #      CACHE CLUSTER     #
+  # ###################### #
+  MemcacheSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Memcache security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          ToPort: 11211
+          FromPort: 11211
+          SourceSecurityGroupId: !Ref AppSG
+      Tags:
+        - Key: Name
+          Value: !Sub sg-memcache-${ProjectName}-${Environment}
+      VpcId: !Ref VpcId
+  MemcacheCluster:
+    Type: 'AWS::ElastiCache::CacheCluster'
+    Properties:
+      AutoMinorVersionUpgrade: 'true'
+      Engine: memcached
+      CacheSubnetGroupName: !Ref MemcacheSubnetGroup
+      CacheNodeType: !Ref MemcacheInstanceName
+      NumCacheNodes: !Ref MemcacheNodes
+      SnapshotName: !If [IsDev, !Ref AWS::NoValue , !Ref SnapshotName]
+      VpcSecurityGroupIds: 
+      - !GetAtt MemcacheSG.GroupId
+      Tags:
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  MemcacheClousterRecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Comment: DNS name for database
+      HostedZoneName: !Sub ${PrivateHostedZone}.
+      Name: !Sub cache-${Environment}.${PrivateHostedZone}
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+      - !GetAtt MemcacheCluster.ConfigurationEndpoint.Address
+
+Outputs:
+  MemcachedConfigurationEndpoint:
+    Description: Memcached Configuration Endpoint
+    Value: !Sub cache-${Environment}.${PrivateHostedZone}
+    Export:
+      Name: !Sub '${AWS::StackName}-MemcachedConfigurationEndpoint'

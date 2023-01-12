@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for AWS IoT Core Fleet provisioning
+
+Parameters:
+#   ProjectName:
+#     Type: String
+#     Default: test
+#   Environment:
+#     Type: String 
+#     Default: dev
+  CSRParameter:
+    Type: String
+  StatusParameter:
+    Type: String
+    Default: ACTIVE
+
+Resources:
+  BootstrapCert:
+    Type: 'AWS::IoT::Certificate'
+    Properties:
+      CertificateSigningRequest: !Ref CSRParameter
+      Status: !Ref StatusParameter
+  PolicyAttachment:
+    DependsOn: ProvisioningPolicy
+    Type: 'AWS::IoT::PolicyPrincipalAttachment'
+    Properties:
+      PolicyName: Fleet-Provisioning-stack-bootstrap-policy
+      Principal: !GetAtt BootstrapCert.Arn

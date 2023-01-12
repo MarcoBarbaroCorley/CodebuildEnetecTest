@@ -1,0 +1,261 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea la base di dati su RDS
+Parameters:
+  BackupRetentionPeriod:
+    Type: String
+    Default: '7'
+    Description: Backup retention period in days
+  AppSG:
+    Type: String
+    Description: Application Security Group
+  VpcId:
+    Type: String
+    Description: Vpc Identification
+  InternetGateway:
+    Type: String
+    Description: Internet Gateway
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name for this infrastructure
+  ProjectName:
+    Type: String
+    Default: myprj
+    Description: Project name
+  PrivateHostedZone:
+    Type: String
+    Description: Private DNS hosted zone
+  Subnet1AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 1 Availability Zone
+  Subnet2AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 2 Availability Zone
+  Subnet1CidrBlock:
+    Type: String
+    Default: 10.46.2.0/28
+    Description: Cidr subnet 1
+  Subnet2CidrBlock:
+    Type: String
+    Default: 10.46.2.16/28
+    Description: Cidr subnet 2
+  RdsMySQLInstanceType:
+    Type: String
+    Default: db.t2.micro
+  RdsMySQLName:
+    Type: String
+    Default: lico
+    Description: RdsMySQL name
+  RdsMySQLMultiAZ:
+    Description: RdsMySQL runs in multi AZ?
+    Type: String
+    Default: 'false'
+  RdsMySQLMasterUsername:
+    Type: String
+    Default: lico
+    Description: Name of master user
+  RdsMySQLUserPassword:
+    NoEcho: 'true'
+    Type: String
+    Default: ''
+    Description: User password
+  RdsMySQLPublicAccess:
+    Type: String
+    Default: 'true'
+  RdsEngineVersion:
+    Type: String
+    Default: 5.6.27
+  RdsStorage:
+    Type: Number
+    Default: 100
+  DBParamFamily:
+    Default: MySQL5.6
+    Type: String
+  DBSnapshotIdentifier:
+    Type: String
+Conditions:
+  IsDev: !Equals [!Ref Environment,"dev"]
+  IsNotDev: !Equals [!Ref Environment,"prod"]
+Resources:
+  # ################### #
+  #      NETWORKING     #
+  # ################### #
+  RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${Environment}-route-table-database"
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  # LocalRoute:
+  #   Type: 'AWS::EC2::Route'
+  #   Properties:
+  #     DestinationCidrBlock: 192.0.0.0/8
+  #     GatewayId: !Ref InternetGateway
+  #     RouteTableId: !Ref RouteTable
+  AttachLocalRoute:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref DatabaseSubnet1a
+  AttachLocalRouteSecond:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref DatabaseSubnet1b
+  DatabaseSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet1AZ
+      CidrBlock: !Ref Subnet1CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub db-${ProjectName}-${Environment}-a  
+  DatabaseSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet2AZ
+      CidrBlock: !Ref Subnet2CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub db-${ProjectName}-${Environment}-b
+  RDSSubnet:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: db-prod-subnet-group
+      SubnetIds:
+        - !Ref DatabaseSubnet1a
+        - !Ref DatabaseSubnet1b
+  # ################## #
+  #      FLOW LOGS     #
+  # ################## #
+  RDSFlowLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub rds-flowlogs-role-${ProjectName}-${Environment}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: vpc-flow-logs.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AssumeRole-AWSCloudFormationStackSetExecutionRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                Resource:
+                  - !Sub ${FlowLogCloudwatchLogsGroup.Arn}:*
+  FlowLogCloudwatchLogsGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Sub "/flowlogs-${ProjectName}-${Environment}/rds"
+      RetentionInDays: 14
+  DatabaseSubnetaFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt RDSFlowLogsRole.Arn
+      LogGroupName: !Ref FlowLogCloudwatchLogsGroup
+      ResourceId: !Ref DatabaseSubnet1a
+      ResourceType: Subnet
+      TrafficType: ALL
+  DatabaseSubnetbFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt RDSFlowLogsRole.Arn
+      LogGroupName: !Ref FlowLogCloudwatchLogsGroup
+      ResourceId: !Ref DatabaseSubnet1b
+      ResourceType: Subnet
+      TrafficType: ALL
+  # ########################### #
+  #      DATABASE INSTANCES     #
+  # ########################### #
+  DatabaseSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: database security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          ToPort: 3306
+          FromPort: 3306
+          SourceSecurityGroupId: !Ref AppSG
+      Tags:
+        - Key: Name
+          Value: database-sg
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+      VpcId: !Ref VpcId
+  DatabaseRecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      HostedZoneName: !Sub ${PrivateHostedZone}.
+      Comment: DNS name for database
+      Name: !Sub db-${Environment}.${PrivateHostedZone}
+      Type: CNAME
+      TTL: '300'
+      ResourceRecords:
+        - !GetAtt Database.Endpoint.Address
+  DBParamUpdate:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: DB Parameter
+      Family: !Ref DBParamFamily
+      Parameters:
+        event_scheduler: 'ON'
+  Database:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AllocatedStorage: !Ref RdsStorage
+      StorageType: gp2
+      AllowMajorVersionUpgrade: true
+      DBInstanceClass: !Ref RdsMySQLInstanceType
+      DBSnapshotIdentifier: !If [IsDev , !Ref DBSnapshotIdentifier , !Ref AWS::NoValue]
+      DBName: !If [IsNotDev, !Ref RdsMySQLName, !Ref AWS::NoValue]
+      DBInstanceIdentifier: !If [IsNotDev,  !Sub "${RdsMySQLName}-${ProjectName}-${Environment}" , !Ref AWS::NoValue ]
+      Engine: mysql
+      EngineVersion: !Ref RdsEngineVersion
+      DBSubnetGroupName: !Ref RDSSubnet
+      MasterUsername: !If [IsDev, !Ref RdsMySQLMasterUsername , !Ref AWS::NoValue ]
+      MasterUserPassword: !If [IsNotDev,  !Sub "{{resolve:secretsmanager:${RdsMySQLUserPassword}:SecretString:DB_PASSWORD}}" , !Ref AWS::NoValue ]
+      BackupRetentionPeriod: !Ref BackupRetentionPeriod
+      MultiAZ: !Ref RdsMySQLMultiAZ
+      DBParameterGroupName: !Ref DBParamUpdate
+      VPCSecurityGroups:
+        - !Ref DatabaseSG
+      PubliclyAccessible: !Ref RdsMySQLPublicAccess
+      Tags:
+        - Key: Name
+          Value: !Sub db-${ProjectName}-${Environment}
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+Outputs:
+  Endpoint:
+    Description: Database Endpoint
+    Value: !Sub db-${Environment}.${PrivateHostedZone} 
+    Export:
+      Name: !Sub '${AWS::StackName}-Endpoint'
+  RouteTable:
+    Value: !Ref RouteTable
+    Description: RouteTable Database 

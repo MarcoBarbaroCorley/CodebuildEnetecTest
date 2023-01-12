@@ -1,0 +1,938 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create the base Universe ECS Cluster
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name for this infrastructure
+  ProjectName:
+    Type: String
+    Default: myprj
+    Description: Project name
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  Subnet1AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 1 Availability Zone
+  Subnet2AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 2 Availability Zone
+  Subnet1CidrBlock:
+    Type: String
+    Default: 10.46.1.0/28
+    Description: Cidr subnet 1
+  Subnet2CidrBlock:
+    Type: String
+    Default: 10.46.1.16/28
+    Description: Cidr subnet 2
+  SubnetElb1CidrBlock:
+    Type: String
+    Default: 10.46.1.128/28
+    Description: Cidr ELB subnet 1
+  SubnetElb2CidrBlock:
+    Type: String
+    Default: 10.46.1.144/28
+    Description: Cidr ELB subnet 2
+  DesiredCapacity:
+    Type: Number
+    Default: '7'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '7'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  InstanceTypeV2:
+    Description: EC2 instance type
+    Type: String
+    Default: t3a.medium
+    AllowedValues:
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t3a.medium
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+    ConstraintDescription: Please choose a valid instance type.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.medium
+    AllowedValues:
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+    ConstraintDescription: Please choose a valid instance type.
+  VpcId:
+    Type: String
+    Description: Vpc ID
+  InternetGateway:
+    Type: String
+    Description: Internet Gateway ID
+  HostedZone:
+    Type: String
+    Description: 'DNS Domain Public Hosted Zone: lico.corley.it'
+  ValidationDomain:
+    Type: String
+    Description: 'Domain for SSL validation: corley.it'
+  ListenerCertificate:
+    Type: String
+    Description: HTTPS certificate ARN
+Mappings:
+  AWSRegionToAMI:
+    us-east-2:
+      AMIID: ami-13af8476
+    us-east-1:
+      AMIID: ami-ba722dc0
+    us-west-2:
+      AMIID: ami-c9c87cb1
+    us-west-1:
+      AMIID: ' ami-9df0f0fd'
+    eu-west-3:
+      AMIID: 'ami-5e02b523 '
+    eu-west-2:
+      AMIID: ami-4d809829
+    eu-west-1:
+      AMIID: ami-acb020d5
+    eu-central-1:
+      AMIID: ami-0165971292603e43d
+    ap-northeast-2:
+      AMIID: ami-59b71737
+    ap-northeast-1:
+      AMIID: ami-72f36a14
+    ap-southeast-2:
+      AMIID: ami-7aa15c18
+    ap-southeast-1:
+      AMIID: ami-e782f29b
+    ca-central-1:
+      AMIID: ami-9afc79fe
+    ap-south-1:
+      AMIID: ami-f4db8f9b
+    sa-east-1:
+      AMIID: ami-49256725
+  AWSRegionToAMIV2:   
+    us-east-2:
+      AMIID: ami-13af8476
+    us-east-1:
+      AMIID: ami-ba722dc0
+    us-west-2:
+      AMIID: ami-c9c87cb1
+    us-west-1:
+      AMIID: ' ami-9df0f0fd'
+    eu-west-3:
+      AMIID: 'ami-5e02b523 '
+    eu-west-2:
+      AMIID: ami-4d809829
+    eu-west-1:
+      AMIID: ami-acb020d5
+    eu-central-1:
+      AMIID: ami-0319b5b60d7feac49 #AMI ECS
+    ap-northeast-2:
+      AMIID: ami-59b71737
+    ap-northeast-1:
+      AMIID: ami-72f36a14
+    ap-southeast-2:
+      AMIID: ami-7aa15c18
+    ap-southeast-1:
+      AMIID: ami-e782f29b
+    ca-central-1:
+      AMIID: ami-9afc79fe
+    ap-south-1:
+      AMIID: ami-f4db8f9b
+    sa-east-1:
+      AMIID: ami-49256725
+
+Conditions:
+  isDev: !Equals [!Ref Environment,"dev"]
+Resources:
+  AppSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet1AZ
+      CidrBlock: !Ref Subnet1CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - !Ref ProjectName
+              - !Ref Environment
+              - private
+  AppSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet2AZ
+      CidrBlock: !Ref Subnet2CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - !Ref ProjectName
+              - !Ref Environment
+              - private
+  ElbSubnet1a:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet1AZ
+      CidrBlock: !Ref SubnetElb1CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - elb
+              - !Ref ProjectName
+              - !Ref Environment
+              - public
+  ElbSubnet1b:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Ref Subnet2AZ
+      CidrBlock: !Ref SubnetElb2CidrBlock
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - elb
+              - !Ref ProjectName
+              - !Ref Environment
+              - public
+  RouteTable:  
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub ecs-${ProjectName}-${Environment}-private
+        - Key: ProjectName
+          Value: !Ref ProjectName
+
+
+  ElbRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - route
+              - !Ref ProjectName
+              - !Ref Environment
+              - elb
+              - public
+  ElbLocalRouteIGW:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref ElbRouteTable
+  # LocalRoute:
+  #   Type: 'AWS::EC2::Route'
+  #   Properties:
+  #     DestinationCidrBlock: 192.0.0.0/8
+  #     GatewayId: !Ref InternetGateway
+  #     RouteTableId: !Ref RouteTable
+  ElbAttachLocalRoute:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref ElbRouteTable
+      SubnetId: !Ref ElbSubnet1a
+  ElbAttachLocalRouteSecond:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref ElbRouteTable
+      SubnetId: !Ref ElbSubnet1b
+  AppLocalRoute:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AppSubnet1a
+  AppLocalRouteSecond:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref AppSubnet1b
+  AppSG:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: security group
+      SecurityGroupIngress:
+        # - CidrIp: 0.0.0.0/0
+        #   IpProtocol: tcp
+        #   FromPort: 22
+        #   ToPort: 22
+        - IpProtocol: '-1'
+          SourceSecurityGroupId: !Ref EcsSecurityGroup
+          FromPort: -1
+          ToPort: -1
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Join 
+            - '-'
+            - - !Ref ProjectName
+              - !Ref Environment
+              - sg
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      Tags:
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+      # CapacityProviders:
+      #   - !Ref CapacityProviderECS
+  EcsSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: ECS Security Group
+      VpcId: !Ref VpcId
+  EcsSecurityGroupHTTPinbound:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref EcsSecurityGroup
+      IpProtocol: tcp
+      FromPort: '80'
+      ToPort: '80'
+      CidrIp: 0.0.0.0/0
+  EcsSecurityGroupHTTPSinbound:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref EcsSecurityGroup
+      IpProtocol: tcp
+      FromPort: '443'
+      ToPort: '443'
+      CidrIp: 0.0.0.0/0
+  CloudwatchLogsGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: !Join 
+        - '-'
+        - - ECSLogGroup
+          - !Ref 'AWS::StackName'
+      RetentionInDays: 14
+  ECSALB:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: !Join 
+        - '-'
+        - - !Ref ProjectName
+          - !Ref Environment
+          - lb
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '30'
+      Subnets:
+        - !Ref ElbSubnet1b
+        - !Ref ElbSubnet1a
+      SecurityGroups:
+        - !Ref EcsSecurityGroup
+      Tags:
+        - Key: ProjectName
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+  ALBListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ECSTG
+      LoadBalancerArn: !Ref ECSALB
+      Port: '443'
+      Protocol: HTTPS
+      Certificates:
+        - CertificateArn: !Ref ListenerCertificate
+  ECSTG:                                              #Non ha istanze collegate 
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    DependsOn: ECSALB
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Name: !Join 
+        - '-'
+        - - !Ref ProjectName
+          - !Ref Environment
+          - tg
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VpcId
+  ECSAutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref AppSubnet1a
+        - !Ref AppSubnet1b
+      LaunchConfigurationName: !Ref ContainerInstances
+      MinSize: !Ref DesiredCapacity
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      Tags:
+        - Key: Name
+          Value: !Ref ECSCluster
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: false
+  ContainerInstances:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          MountConfig:
+            - base
+        base:
+          commands:
+            01_add_instance_to_cluster:
+              command: !Join 
+                - ''
+                - - |
+                    #!/bin/bash
+                  - echo ECS_CLUSTER=
+                  - !Ref ECSCluster
+                  - ' >> /etc/ecs/ecs.config'
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Join 
+                - ''
+                - - |
+                    [main]
+                  - stack=
+                  - !Ref 'AWS::StackId'
+                  - |+
+
+                  - region=
+                  - !Ref 'AWS::Region'
+                  - |+
+
+              mode: '000400'
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Join 
+                - ''
+                - - |
+                    [cfn-auto-reloader-hook]
+                  - |
+                    triggers=post.update
+                  - >
+                    path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
+                  - 'action=/opt/aws/bin/cfn-init -v '
+                  - '         --stack '
+                  - !Ref 'AWS::StackName'
+                  - '         --resource ContainerInstances '
+                  - '         --region '
+                  - !Ref 'AWS::Region'
+                  - |+
+
+                  - |
+                    runas=root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+          packages:
+            yum:
+              amazon-ssm-agent: []
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionToAMI
+        - !Ref 'AWS::Region'
+        - AMIID
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref AppSG
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe
+            - |
+              yum install -y aws-cfn-bootstrap
+            - '/opt/aws/bin/cfn-init -v '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource ContainerInstances '
+            - '         --configsets MountConfig '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource ECSAutoScalingGroup '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+  ECSAutoScalingGroupV2:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      AutoScalingGroupName: !Sub ${ProjectName}-AutoscalingGroup-${ECSCluster}
+      VPCZoneIdentifier:
+        - !Ref AppSubnet1a
+        - !Ref AppSubnet1b
+      LaunchConfigurationName: !Ref ContainerInstancesV2
+      MinSize: !Ref DesiredCapacity
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      Tags:
+        - Key: Name
+          Value: !Ref ECSCluster
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'false'
+  ContainerInstancesV2:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          MountConfig:
+            - base
+        base:
+          commands:
+            01_add_instance_to_cluster:
+              command: !Join 
+                - ''
+                - - |
+                    #!/bin/bash
+                  - echo ECS_CLUSTER=
+                  - !Ref ECSCluster
+                  - ' >> /etc/ecs/ecs.config'
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Join 
+                - ''
+                - - |
+                    [main]
+                  - stack=
+                  - !Ref 'AWS::StackId'
+                  - |+
+
+                  - region=
+                  - !Ref 'AWS::Region'
+                  - |+
+
+              mode: '000400'
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Join 
+                - ''
+                - - |
+                    [cfn-auto-reloader-hook]
+                  - |
+                    triggers=post.update
+                  - >
+                    path=Resources.ContainerInstances.Metadata.AWS::CloudFormation::Init
+                  - 'action=/opt/aws/bin/cfn-init -v '
+                  - '         --stack '
+                  - !Ref 'AWS::StackName'
+                  - '         --resource ContainerInstances '
+                  - '         --region '
+                  - !Ref 'AWS::Region'
+                  - |+
+
+                  - |
+                    runas=root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+          packages:
+            yum:
+              amazon-ssm-agent: []
+    Properties:
+      ImageId: !FindInMap 
+        - AWSRegionToAMIV2
+        - !Ref 'AWS::Region'
+        - AMIID
+      InstanceType: !Ref InstanceTypeV2
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref AppSG
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe
+            - |
+              yum install -y aws-cfn-bootstrap
+            - '/opt/aws/bin/cfn-init -v '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource ContainerInstancesV2 '
+            - '         --configsets MountConfig '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '         --stack '
+            - !Ref 'AWS::StackName'
+            - '         --resource ECSAutoScalingGroupV2 '
+            - '         --region '
+            - !Ref 'AWS::Region'
+            - |+
+
+  # CapacityProviderECS:
+  #   Type: AWS::ECS::CapacityProvider
+  #   Properties: 
+  #     AutoScalingGroupProvider: 
+  #       AutoScalingGroupArn: !Ref ECSAutoScalingGroupV2
+  #       ManagedScaling:
+  #         Status: ENABLED
+  #         TargetCapacity: 50
+  #     Name: !Sub ${ProjectName}-CapacityProvider-ECS
+
+
+  EC2Role:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecs:CreateCluster'
+                  - 'ecs:DeregisterContainerInstance'
+                  - 'ecs:DiscoverPollEndpoint'
+                  - 'ecs:Poll'
+                  - 'ecs:RegisterContainerInstance'
+                  - 'ecs:StartTelemetrySession'
+                  - 'ecs:Submit*'
+                  - 'ecr:*'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 's3:*'
+                  - 'lambda:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                  - 'logs:DescribeLogStreams'
+                Resource:
+                  - 'arn:aws:logs:*:*:*'
+              - Effect: Allow
+                Action:
+                  - 'ssm:DescribeAssociation'
+                  - 'ssm:GetDeployablePatchSnapshotForInstance'
+                  - 'ssm:GetDocument'
+                  - 'ssm:GetParameters'
+                  - 'ssm:ListAssociations'
+                  - 'ssm:ListInstanceAssociations'
+                  - 'ssm:PutInventory'
+                  - 'ssm:UpdateAssociationStatus'
+                  - 'ssm:UpdateInstanceAssociationStatus'
+                  - 'ssm:UpdateInstanceInformation'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'ec2messages:AcknowledgeMessage'
+                  - 'ec2messages:DeleteMessage'
+                  - 'ec2messages:FailMessage'
+                  - 'ec2messages:GetEndpoint'
+                  - 'ec2messages:GetMessages'
+                  - 'ec2messages:SendReply'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'cloudwatch:PutMetricData'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'ec2:DescribeInstanceStatus'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'ds:CreateComputer'
+                  - 'ds:DescribeDirectories'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:AbortMultipartUpload'
+                  - 's3:ListMultipartUploadParts'
+                  - 's3:ListBucketMultipartUploads'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                Resource: 'arn:aws:s3:::amazon-ssm-packages-*'
+          
+  AutoscalingRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - application-autoscaling.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: service-autoscaling
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'application-autoscaling:*'
+                  - 'cloudwatch:DescribeAlarms'
+                  - 'cloudwatch:PutMetricAlarm'
+                  - 'ecs:DescribeServices'
+                  - 'ecs:UpdateService'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:GetAuthorizationToken'
+                  - 's3:*'
+                  - 'lambda:*'
+                Resource: '*'
+  EC2InstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Path: /
+      Roles:
+        - !Ref EC2Role
+  Topic:
+    Type: 'AWS::SNS::Topic'
+    DependsOn: Queue
+    Properties:
+      DisplayName: !Ref ECSCluster
+      Subscription:
+        - Endpoint: !GetAtt 
+            - Queue
+            - Arn
+          Protocol: sqs
+      TopicName: !Ref ECSCluster
+  Queue:
+    Type: 'AWS::SQS::Queue'
+    Properties:
+      DelaySeconds: 0
+      MaximumMessageSize: 262144
+      MessageRetentionPeriod: 345600
+      QueueName: !Ref ECSCluster
+      ReceiveMessageWaitTimeSeconds: 20
+      VisibilityTimeout: 300
+  QueuePolicy:
+    Type: 'AWS::SQS::QueuePolicy'
+    DependsOn: Queue
+    Properties:
+      Queues:
+        - !Ref Queue
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: MySQSPolicy001
+            Effect: Allow
+            Principal: '*'
+            Action: 'sqs:SendMessage'
+            Resource: !GetAtt 
+              - Queue
+              - Arn
+            Condition:
+              ArnEquals:
+                'aws:SourceArn': !Ref Topic
+Outputs:
+  ecscluster:
+    Value: !Ref ECSCluster
+    Export:
+      Name: !Sub '${AWS::StackName}-ECSCluster'
+  EcsClusterArn:
+    Value: !GetAtt 
+      - ECSCluster
+      - Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-ECSClusterArn'
+  ECSALB:
+    Description: Your ALB ARN
+    Value: !Ref ECSALB
+    Export:
+      Name: !Sub '${AWS::StackName}-ECSALB'
+  ALBFullName:
+    Description: Your ALB FullName
+    Value: !GetAtt 
+      - ECSALB
+      - LoadBalancerFullName
+    Export:
+      Name: !Sub '${AWS::StackName}-ALBFullName'
+  Endpoint:
+    Description: Your ALB Endpoint
+    Value: !GetAtt 
+      - ECSALB
+      - DNSName
+    Export:
+      Name: !Sub '${AWS::StackName}-Endpoint'
+  CanonicalEndpoint:
+    Description: Your ALB Endpoint
+    Value: !GetAtt 
+      - ECSALB
+      - CanonicalHostedZoneID
+    Export:
+      Name: !Sub '${AWS::StackName}-CanonicalEndpoint'
+  ALBListener:
+    Description: Your ALB ARN
+    Value: !Ref ALBListener
+    Export:
+      Name: !Sub '${AWS::StackName}-ALBListener'
+  LogGroupName:
+    Description: Log Group Name
+    Value: !Join 
+      - '-'
+      - - ECSLogGroup
+        - !Ref 'AWS::StackName'
+    Export:
+      Name: !Sub '${AWS::StackName}-LogGroupName'
+  NotificationQueue:
+    Description: Notification Queue
+    Value: !GetAtt 
+      - Queue
+      - Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-NotificationQueue'
+  AppSG:
+    Description: Notification Queue
+    Value: !Ref AppSG
+    Export:
+      Name: !Sub '${AWS::StackName}-AppSG'
+  Subnets:
+    Description: Our Subnets
+    Value: !Join 
+      - ','
+      - - !Ref AppSubnet1a
+        - !Ref AppSubnet1b
+    Export:
+      Name: !Sub '${AWS::StackName}-Subnets'
+  SubnetPublicAlb:
+    Description: PublicSubnetAlb
+    Value: !Join 
+      - ','
+      - - !Ref ElbSubnet1a
+        - !Ref ElbSubnet1b
+    Export:
+      Name: !Sub "${AWS::StackName}-Subnets-public-alb"
+  RouteTablePrivateCluster:
+    Value: !Ref RouteTable
+    Description: Route table app cluster
+    Export: 
+      Name: !Sub "${AWS::StackName}-route-table-private-cluster"

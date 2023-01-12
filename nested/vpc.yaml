@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea l'infrastruttura di rete di base
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name for this infrastructure
+  ProjectName:
+    Type: String
+    Default: lico
+    Description: Project name
+  CidrBlock:
+    Type: String
+    Default: 10.46.0.0/16
+    Description: Your IP class
+    
+Resources:
+  # ################### #
+  #      NETWORKING     #
+  # ################### #
+  VpcEnv:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref CidrBlock
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: !Sub vpc.${ProjectName}.${Environment} 
+  VpcEnvInternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub igw.${ProjectName}.${Environment}  
+  ProdZone:
+    Type: 'AWS::Route53::HostedZone'
+    Properties:
+      Name: !Sub ${ProjectName}.${Environment} 
+      VPCs:
+        - VPCId: !Ref VpcEnv
+          VPCRegion: !Ref 'AWS::Region'
+  CIIgwAttach:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      InternetGatewayId: !Ref VpcEnvInternetGateway
+      VpcId: !Ref VpcEnv
+  RouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VpcEnv
+  LocalRoute:
+    Type: 'AWS::EC2::Route'
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref VpcEnvInternetGateway
+      RouteTableId: !Ref RouteTable
+
+Outputs:
+  InternetGateway:
+    Description: VPC Internet Gateway ID
+    Value: !Ref VpcEnvInternetGateway
+    Export:
+      Name: !Sub '${AWS::StackName}-InternetGatewayID'
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VpcEnv
+    Export:
+      Name: !Sub '${AWS::StackName}-VpcID'
+  PrivateHostedZone:
+    Description: Private Hosted Zone
+    Value: !Sub ${ProjectName}.${Environment} 
+    Export:
+      Name: !Sub '${AWS::StackName}-ProdZone'
+  RouteTable:
+    Value: !Ref RouteTable

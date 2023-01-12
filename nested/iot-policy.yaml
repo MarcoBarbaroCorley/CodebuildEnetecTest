@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: IOT Policy
+Parameters: {}
+Resources:
+  TermoPolicy:
+    Type: 'AWS::IoT::Policy'
+    Properties:
+      PolicyName: !Sub '${AWS::StackName}-TermoPolicy'
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'iot:*'
+            Resource:
+              - '*'
+Outputs:
+  TermoPolicy:
+    Description: IOT Termo Policy Name
+    Value: !Sub '${AWS::StackName}-TermoPolicy'
+    Export:
+      Name: !Sub '${AWS::StackName}-TermoPolicy'
+  TermoPolicyArn:
+    Description: IOT Termo policy ARN
+    Value: !GetAtt 
+      - TermoPolicy
+      - Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-TermoPolicyArn'

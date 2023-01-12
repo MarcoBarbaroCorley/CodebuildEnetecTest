@@ -1,0 +1,527 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Crea l'infrastruttura
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+    Description: Base Environment
+  Project:
+    Type: String
+    Default: lico
+    Description: Project Name
+  CidrBlock:
+    Type: String
+    Default: 10.46.0.0/16
+    Description: VPC CIDR Block
+  HostedZoneName:
+    Type: String
+    Default: lico.corley.it
+    Description: Base public hosted zone name
+  ValidationDomain:
+    Type: String
+    Default: corley.it
+    Description: Base domain validation
+  KeyName:
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    Description: Cluster SSH Key name
+  Subnet1AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 1 Availability Zone
+  Subnet2AZ:
+    Type: 'AWS::EC2::AvailabilityZone::Name'
+    Description: Subnet 2 Availability Zone
+  Subnet1CidrBlock:
+    Type: String
+    Default: 10.46.1.0/28
+    Description: Cidr subnet 1
+  Subnet2CidrBlock:
+    Type: String
+    Default: 10.46.1.16/28
+    Description: Cidr subnet 2
+  SubnetElb1CidrBlock:
+    Type: String
+    Default: 10.46.1.128/28
+    Description: Cidr ELB subnet 1
+  SubnetElb2CidrBlock:
+    Type: String
+    Default: 10.46.1.144/28
+    Description: Cidr ELB subnet 2
+  DesiredCapacity:
+    Type: Number
+    Default: '7'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '7'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.medium
+    AllowedValues:
+      - t2.nano
+      - t2.micro
+      - t2.small
+      - t2.medium
+      - t2.large
+      - m3.medium
+      - m3.large
+      - m3.xlarge
+      - m3.2xlarge
+      - m4.large
+      - m4.xlarge
+      - m4.2xlarge
+      - m4.4xlarge
+      - m4.10xlarge
+      - c4.large
+      - c4.xlarge
+      - c4.2xlarge
+      - c4.4xlarge
+      - c4.8xlarge
+      - c3.large
+      - c3.xlarge
+      - c3.2xlarge
+      - c3.4xlarge
+      - c3.8xlarge
+      - r3.large
+      - r3.xlarge
+      - r3.2xlarge
+      - r3.4xlarge
+      - r3.8xlarge
+      - i2.xlarge
+      - i2.2xlarge
+      - i2.4xlarge
+      - i2.8xlarge
+    ConstraintDescription: Please choose a valid instance type.
+  DBSubnet1CidrBlock:
+    Type: String
+    Default: 10.46.2.0/28
+    Description: Cidr subnet 1
+  DBSubnet2CidrBlock:
+    Type: String
+    Default: 10.46.2.16/28
+    Description: Cidr subnet 2
+  RdsMySQLInstanceType:
+    Type: String
+    Default: db.t2.micro
+  RdsMySQLName:
+    Type: String
+    Default: lico
+    Description: RdsMySQL name
+  RdsMySQLMultiAZ:
+    Description: RdsMySQL runs in multi AZ?
+    Type: String
+    Default: 'false'
+  RdsMySQLMasterUsername:
+    Type: String
+    Default: lico
+    Description: Name of master user
+  RdsMySQLUserPassword:
+    NoEcho: 'true'
+    Type: String
+    Default: ''
+    Description: User password
+  RdsMySQLPublicAccess:
+    Type: String
+    Default: 'true'
+  RdsStorage:
+    Type: String
+    Default: '100'
+    Description: 'DB Storage [GB]'
+  IotTableName:
+    Type: String
+    Description: IOT DynamoDB Table Name
+  ReadUnit:
+    Type: Number
+  WriteUnit:
+    Type: Number
+  CacheSubnet1CidrBlock:
+    Type: String
+    Default: 10.46.3.0/28
+    Description: Cidr subnet 1
+  CacheSubnet2CidrBlock:
+    Type: String
+    Default: 10.46.3.16/28
+    Description: Cidr subnet 2
+  CacheInstanceType:
+    Type: String
+    Default: cache.t2.micro
+    Description: Memcached instance tier
+  CacheNodes:
+    Type: Number
+    Default: 1
+    Description: Memcached cluster size
+  CertificateArn:
+    Type: String
+    Description: AWS HTTPs Listener Certificate ARN (ACM)
+  IotLambdaBucket:
+    Type: String
+    Description: S3 Bucket for IOT to Lambda function code
+  IotLambdaKey:
+    Type: String
+    Description: S3 Key for lambda code IOT -> to Lambda -> to DynamoDB
+  RdsEngineVersion:
+    Type: String
+    Default: 5.7.21
+    Description: Database engine version
+  DBParamFamily:
+    Type: String
+    Default: MySQL5.7
+  StagingAccount:
+    Type: String
+    Default: '625727845833'
+    Description: Staging Account
+  WAFApiGatewaysARN:
+    Type: String
+    Default: ''
+  WAFLoadBalancersARN:
+    Type: String
+    Default: ''
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: General Configuration
+        Parameters:
+          - Env
+          - Project
+      - Label:
+          default: VPC Configuration
+        Parameters:
+          - CidrBlock
+      - Label:
+          default: Domain Configuration
+        Parameters:
+          - HostedZoneName
+          - ValidationDomain
+      - Label:
+          default: Security Configuration
+        Parameters:
+          - KeyName
+      - Label:
+          default: Cluster Configuration
+        Parameters:
+          - Subnet1AZ
+          - Subnet2AZ
+          - Subnet1CidrBlock
+          - Subnet2CidrBlock
+          - SubnetElb1CidrBlock
+          - SubnetElb2CidrBlock
+          - DesiredCapacity
+          - MaxSize
+          - InstanceType
+          - CertificateArn
+      - Label:
+          default: Database Configuration
+        Parameters:
+          - DBSubnet1CidrBlock
+          - DBSubnet2CidrBlock
+          - RdsMySQLInstanceType
+          - RdsMySQLName
+          - RdsMySQLMultiAZ
+          - RdsMySQLMasterUsername
+          - RdsMySQLUserPassword
+          - RdsMySQLPublicAccess
+          - RdsStorage
+          - RdsEngineVersion
+          - DBParamFamily
+      - Label:
+          default: Cache Configuration
+        Parameters:
+          - CacheNodes
+          - CacheInstanceType
+          - CacheSubnet1CidrBlock
+          - CacheSubnet2CidrBlock
+      - Label:
+          default: IOT Configuration
+        Parameters:
+          - IotTableName
+          - ReadUnit
+          - WriteUnit
+          - IotLambdaBucket
+          - IotLambdaKey
+
+Mappings:
+  Vpc:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/vpc.yaml
+    dev:
+      TemplateUrl: https://testawscorley1.s3.eu-central-1.amazonaws.com/templates/vpc.yaml
+  HostedZone:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/domain-prod.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/domain-prod.yaml
+  Cluster:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/ecs.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/ecs.yaml
+  Database:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/rds.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/rds.yaml
+  Cache:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/cache.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/cache.yaml
+  TermoPolicy:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/iot-policy.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/iot-policy.yaml
+  ECR:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/ecr.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/ecr.yaml
+  Nat:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/nat.yaml
+    dev:
+      TemplateUrl:  https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/nat.yaml
+  AlbWaf:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/alb-waf.yaml
+    dev:
+      TemplateUrl:  https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/alb-waf.yaml
+  ApiWaf:
+    prod:
+      TemplateUrl: >-
+        https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/api-waf.yaml
+    dev:
+      TemplateUrl: https://s3.eu-central-1.amazonaws.com/sc365-infrastructure/templates/api-waf.yaml
+  
+  Cidr:
+    prod:
+      CidrBlock: 10.46.0.0/16
+      Subnet1CidrBlock: 10.46.1.0/28
+      Subnet2CidrBlock: 10.46.1.16/28
+      SubnetElb1CidrBlock: 10.46.1.128/28
+      SubnetElb2CidrBlock: 10.46.1.144/28
+      DBSubnet1CidrBlock: 10.46.2.0/28
+      DBSubnet2CidrBlock: 10.46.2.16/28
+      CacheSubnet1CidrBlock: 10.46.3.0/28
+      CacheSubnet2CidrBlock: 10.46.3.16/28
+    dev:
+      CidrBlock: 10.50.0.0/16
+      Subnet1CidrBlock: 10.50.1.0/28
+      Subnet2CidrBlock: 10.50.1.16/28
+      SubnetElb1CidrBlock: 10.50.1.128/28
+      SubnetElb2CidrBlock: 10.50.1.144/28
+      DBSubnet1CidrBlock: 10.50.2.0/28
+      DBSubnet2CidrBlock: 10.50.2.16/28
+      CacheSubnet1CidrBlock: 10.50.3.0/28
+      CacheSubnet2CidrBlock: 10.50.3.16/28
+
+Conditions:
+  CreateECRResources: !Equals 
+    - !Ref Env
+    - prod
+
+Resources:
+  NetworkStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      Parameters:
+        Environment: !Ref Env
+        ProjectName: !Ref Project
+        CidrBlock: !Ref CidrBlock
+      Tags: []
+      TemplateURL: !FindInMap 
+        - Vpc
+        - !Ref Env
+        - TemplateUrl
+      TimeoutInMinutes: 900
+  # NatGateway:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       Environment: !Ref Env
+  #       ProjectName: !Ref Project
+  #       PublicSubnet: !Select [0,!Split [",", !GetAtt ClusterStack.Outputs.SubnetPublicAlb ]]
+  #       PrivateRouteTableDatabase: !GetAtt DatabaseStack.Outputs.RouteTable
+  #       PrivateRouteTableCluster: !GetAtt ClusterStack.Outputs.RouteTablePrivateCluster
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - Nat
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # HostedZoneStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       HostedZoneName: !Ref HostedZoneName
+  #       VpcId: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.VpcId
+  #       ValidationDomain: !Ref ValidationDomain
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - HostedZone
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # ClusterStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       Environment: !Ref Env
+  #       ProjectName: !Ref Project
+  #       KeyName: !Ref KeyName
+  #       Subnet1AZ: !Ref Subnet1AZ
+  #       Subnet2AZ: !Ref Subnet2AZ
+  #       Subnet1CidrBlock: !Ref Subnet1CidrBlock
+  #       Subnet2CidrBlock: !Ref Subnet2CidrBlock
+  #       SubnetElb1CidrBlock: !Ref SubnetElb1CidrBlock
+  #       SubnetElb2CidrBlock: !Ref SubnetElb2CidrBlock
+  #       DesiredCapacity: !Ref DesiredCapacity
+  #       MaxSize: !Ref MaxSize
+  #       InstanceType: !Ref InstanceType
+  #       VpcId: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.VpcId
+  #       InternetGateway: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.InternetGateway
+  #       HostedZone: !GetAtt 
+  #         - HostedZoneStack
+  #         - Outputs.HostedZone
+  #       ValidationDomain: !GetAtt 
+  #         - HostedZoneStack
+  #         - Outputs.ValidationDomain
+  #       ListenerCertificate: !Ref CertificateArn
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - Cluster
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # DatabaseStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       BackupRetentionPeriod: 7
+  #       AppSG: !GetAtt 
+  #         - ClusterStack
+  #         - Outputs.AppSG
+  #       VpcId: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.VpcId
+  #       InternetGateway: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.InternetGateway
+  #       Environment: !Ref Env
+  #       ProjectName: !Ref Project
+  #       PrivateHostedZone: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.PrivateHostedZone
+  #       Subnet1AZ: !Ref Subnet1AZ
+  #       Subnet2AZ: !Ref Subnet2AZ
+  #       Subnet1CidrBlock: !Ref DBSubnet1CidrBlock
+  #       Subnet2CidrBlock: !Ref DBSubnet2CidrBlock
+  #       RdsMySQLInstanceType: !Ref RdsMySQLInstanceType
+  #       RdsMySQLName: !Ref RdsMySQLName
+  #       RdsMySQLMultiAZ: !Ref RdsMySQLMultiAZ
+  #       RdsMySQLMasterUsername: !Ref RdsMySQLMasterUsername
+  #       RdsMySQLUserPassword: !Ref RdsMySQLUserPassword
+  #       RdsMySQLPublicAccess: !Ref RdsMySQLPublicAccess
+  #       RdsEngineVersion: !Ref RdsEngineVersion
+  #       RdsStorage: !Ref RdsStorage
+  #       DBParamFamily: !Ref DBParamFamily
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - Database
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # CacheStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       AppSG: !GetAtt 
+  #         - ClusterStack
+  #         - Outputs.AppSG
+  #       VpcId: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.VpcId
+  #       Environment: !Ref Env
+  #       ProjectName: !Ref Project
+  #       PrivateHostedZone: !GetAtt 
+  #         - NetworkStack
+  #         - Outputs.PrivateHostedZone
+  #       Subnet1AZ: !Ref Subnet1AZ
+  #       Subnet2AZ: !Ref Subnet2AZ
+  #       Subnet1CidrBlock: !Ref CacheSubnet1CidrBlock
+  #       Subnet2CidrBlock: !Ref CacheSubnet2CidrBlock
+  #       MemcacheInstanceName: !Ref CacheInstanceType
+  #       MemcacheNodes: !Ref CacheNodes
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - Cache
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # TermoPolicyStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters: {}
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - TermoPolicy
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # ECRStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Condition: CreateECRResources
+  #   Properties:
+  #     Parameters:
+  #       StagingAccount: !Ref StagingAccount
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - ECR
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # AlbWafRegionalStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       WebACLName: !Sub "${Project}-alb"
+  #       Environment: !Ref Env
+  #       Scope: REGIONAL
+  #       LoadBalancersARN: !Ref WAFLoadBalancersARN
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - AlbWaf
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900
+  # ApiWafRegionalStack:
+  #   Type: 'AWS::CloudFormation::Stack'
+  #   Properties:
+  #     Parameters:
+  #       WebACLName: !Sub "${Project}-api"
+  #       Environment: !Ref Env
+  #       Scope: REGIONAL
+  #       ApiGatewaysARN: !Ref WAFLoadBalancersARN
+  #     Tags: []
+  #     TemplateURL: !FindInMap 
+  #       - ApiWaf
+  #       - !Ref Env
+  #       - TemplateUrl
+  #     TimeoutInMinutes: 900

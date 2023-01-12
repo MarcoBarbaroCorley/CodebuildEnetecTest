@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Checkout Static  WebSite
+Parameters:
+  RootDomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+  Certificate:
+    Type: String
+    Default: ''
+    Description: US (East Virginia) SSL Certificate ARN
+Resources:
+  RootBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref RootDomainName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+  myDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        DefaultRootObject: index.html
+        Origins:
+          - DomainName: !Sub '${RootBucket}.s3.amazonaws.com'
+            Id: myCustomOrigin
+            S3OriginConfig: {}
+        Enabled: 'true'
+        Comment: Web App Distribution
+        Aliases:
+          - !Ref RootDomainName
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          TargetOriginId: myCustomOrigin
+          SmoothStreaming: 'false'
+          MinTTL: '0'
+          MaxTTL: '0'
+          DefaultTTL: '0'
+          ForwardedValues:
+            QueryString: 'true'
+            Cookies:
+              Forward: all
+          ViewerProtocolPolicy: redirect-to-https
+        CacheBehaviors:
+          - AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            TargetOriginId: myCustomOrigin
+            ForwardedValues:
+              QueryString: 'true'
+              Cookies:
+                Forward: all
+            ViewerProtocolPolicy: redirect-to-https
+            PathPattern: pub/*
+        CustomErrorResponses: []
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          SslSupportMethod: sni-only
+Outputs:
+  WebsiteURL:
+    Value: !GetAtt RootBucket.WebsiteURL
+    Description: URL for website hosted on S3
