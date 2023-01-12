@@ -24,11 +24,11 @@ phases:
       - |
         if [ "$ENVIRONMENT" = "dev" ]; then 
           if ! aws cloudformation describe-stacks --stack-name main-dev ; then
-            aws cloudformation update-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
-            aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
-            echo "Sto facendo l'update "
-          else
             aws cloudformation create-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
+            aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
+            echo "Sto facendo la creazione "
+          else
+            aws cloudformation update-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
             aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
             echo "Sono QUI DENTRO"
           fi
