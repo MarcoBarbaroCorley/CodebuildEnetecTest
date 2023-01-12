@@ -20,7 +20,7 @@ phases:
   build:
     on-failure: ABORT
     commands:
-      - aws cloudformation update-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
+      - aws cloudformation create-stack --stack-name main-$ENVIRONMENT --template-url https://$BUCKET.s3.$AWS_REGION.amazonaws.com/templates/main.yaml --parameters file://main-parameters-$ENVIRONMENT.json
       - aws cloudformation wait stack-update-complete --stack-name main-$ENVIRONMENT
   post_build:
     on-failure: ABORT
